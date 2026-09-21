@@ -70,6 +70,28 @@ public class CartItemController {
                 .body(e.getMessage());
         }
     }
+    
+ // =====================================================
+ // 회원 장바구니 화면 상세 조회
+ // =====================================================
+ @GetMapping("/member/{mno}/detail")
+ public ResponseEntity<?> findDetailByMember(
+     @PathVariable("mno") Long mno
+ ) {
+
+     try {
+
+         return ResponseEntity.ok(
+             cartItemService.findDetailByMember(mno)
+         );
+
+     } catch (IllegalArgumentException e) {
+
+         return ResponseEntity
+             .badRequest()
+             .body(e.getMessage());
+     }
+ }
 
     // CARTITEM 단건 조회
     @GetMapping("/{no}")

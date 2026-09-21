@@ -58,6 +58,33 @@ public class ObMemberController {
                 .body(e.getMessage());
         }
     }
+    
+    /**
+     * 로그인
+     *
+     * POST /api/members/login
+     */
+    @PostMapping("/login")
+    public ResponseEntity<?> login(
+        @RequestBody LoginRequestDTO dto
+    ) {
+
+        try {
+
+            LoginResponseDTO member =
+                obMemberService.login(dto);
+
+            return ResponseEntity.ok(
+                member
+            );
+
+        } catch (IllegalArgumentException e) {
+
+            return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(e.getMessage());
+        }
+    }
 
     /**
      * 전체 회원 조회

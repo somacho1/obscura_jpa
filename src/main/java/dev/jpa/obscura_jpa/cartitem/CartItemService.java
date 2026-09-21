@@ -12,6 +12,8 @@ import dev.jpa.obscura_jpa.cart.CartService;
 import dev.jpa.obscura_jpa.productoption.ProductOption;
 import dev.jpa.obscura_jpa.productoption.ProductOptionRepository;
 import dev.jpa.obscura_jpa.stock.Stock;
+import dev.jpa.obscura_jpa.product.Product;
+import dev.jpa.obscura_jpa.productimage.ProductImageRepository;
 import dev.jpa.obscura_jpa.stock.StockRepository;
 
 @Service
@@ -23,19 +25,22 @@ public class CartItemService {
     private final CartService cartService;
     private final ProductOptionRepository productOptionRepository;
     private final StockRepository stockRepository;
+    private final ProductImageRepository productImageRepository;
 
     public CartItemService(
         CartItemRepository cartItemRepository,
         CartRepository cartRepository,
         CartService cartService,
         ProductOptionRepository productOptionRepository,
-        StockRepository stockRepository
+        StockRepository stockRepository,
+        ProductImageRepository productImageRepository
     ) {
         this.cartItemRepository = cartItemRepository;
         this.cartRepository = cartRepository;
         this.cartService = cartService;
         this.productOptionRepository = productOptionRepository;
         this.stockRepository = stockRepository;
+        this.productImageRepository = productImageRepository;
     }
 
     // =====================================================
@@ -163,6 +168,117 @@ public class CartItemService {
             .map(this::toDTO)
             .toList();
     }
+    
+ // =====================================================
+ // React 장바구니 화면용 상세 조회
+ // =====================================================
+ @Transactional(readOnly = true)
+ public List<CartItemDetailDTO> findDetailByMember(
+     Long mno
+ ) {
+
+     Cart cart =
+         cartRepository.findByMemberNo(mno)
+             .orElseThrow(() ->
+                 new IllegalArgumentException(
+                     "해당 회원의 장바구니가 없습니다."
+                 )
+             );
+
+     return cartItemRepository
+         .findAllByCartNoOrderByCdateDesc(
+             cart.getNo()
+         )
+         .stream()
+         .map(cartItem -> {
+
+             ProductOption option =
+                 cartItem.getProductOption();
+
+             Product product =
+                 option.getProduct();
+
+             Stock stock =
+                 stockRepository
+                     .findByProductOptionNo(
+                         option.getNo()
+                     )
+                     .orElse(null);
+
+             String mainImageUrl =
+                 productImageRepository
+                     .findFirstByProductNoAndImageTypeAndDisplayYnOrderBySeqNoAsc(
+                         product.getNo(),
+                         "MAIN",
+                         "Y"
+                     )
+                     .map(image ->
+                         image.getImageUrl()
+                     )
+                     .orElse(null);
+
+             int discountRate =
+                 product.getDiscountRate() == null
+                     ? 0
+                     : product.getDiscountRate();
+
+             long salePrice =
+                 product.getPrice()
+                     * (100L - discountRate)
+                     / 100L;
+
+             long stockQty =
+                 stock == null
+                     ? 0L
+                     : stock.getQty();
+
+             return CartItemDetailDTO.builder()
+                 .cartItemNo(
+                     cartItem.getNo()
+                 )
+                 .productNo(
+                     product.getNo()
+                 )
+                 .optionNo(
+                     option.getNo()
+                 )
+                 .brandName(
+                     product.getBrand().getName()
+                 )
+                 .productName(
+                     product.getName()
+                 )
+                 .mainImageUrl(
+                     mainImageUrl
+                 )
+                 .color(
+                     option.getColor()
+                 )
+                 .sizeValue(
+                     option.getSizeValue()
+                 )
+                 .price(
+                     product.getPrice()
+                 )
+                 .discountRate(
+                     discountRate
+                 )
+                 .salePrice(
+                     salePrice
+                 )
+                 .qty(
+                     cartItem.getQty()
+                 )
+                 .stockQty(
+                     stockQty
+                 )
+                 .soldOut(
+                     stockQty <= 0
+                 )
+                 .build();
+         })
+         .toList();
+ }
 
     // =====================================================
     // CARTITEM 단건 조회

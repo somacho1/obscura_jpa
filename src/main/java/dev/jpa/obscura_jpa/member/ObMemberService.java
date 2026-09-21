@@ -8,6 +8,9 @@ import org.springframework.stereotype.Service;
 
 import lombok.RequiredArgsConstructor;
 
+
+
+
 /**
  * 회원 Service
  *
@@ -76,6 +79,81 @@ public class ObMemberService {
 
         return obMemberRepository.findById(id)
             .map(this::toDTO);
+    }
+    
+    /**
+     * 로그인
+     *
+     * - 아이디 확인
+     * - 비밀번호 확인
+     * - 정상 회원 상태 확인
+     * - 마지막 로그인 시간 갱신
+     */
+    public LoginResponseDTO login(
+        LoginRequestDTO dto
+    ) {
+
+        // 아이디 입력 확인
+        if (dto.getId() == null ||
+            dto.getId().isBlank()) {
+
+            throw new IllegalArgumentException(
+                "아이디를 입력해주세요."
+            );
+        }
+
+        // 비밀번호 입력 확인
+        if (dto.getPassword() == null ||
+            dto.getPassword().isBlank()) {
+
+            throw new IllegalArgumentException(
+                "비밀번호를 입력해주세요."
+            );
+        }
+
+        // 아이디로 회원 조회
+        ObMember member =
+            obMemberRepository
+                .findById(dto.getId())
+                .orElseThrow(() ->
+                    new IllegalArgumentException(
+                        "아이디 또는 비밀번호가 올바르지 않습니다."
+                    )
+                );
+
+        // 비밀번호 확인
+        // 현재 프로젝트는 BCrypt 적용 전이므로 문자열 비교
+        if (!member.getPassword()
+            .equals(dto.getPassword())) {
+
+            throw new IllegalArgumentException(
+                "아이디 또는 비밀번호가 올바르지 않습니다."
+            );
+        }
+
+        // 정상 회원인지 확인
+        if (member.getStatusNo() != 1) {
+
+            throw new IllegalArgumentException(
+                "로그인할 수 없는 회원입니다."
+            );
+        }
+
+        // 마지막 로그인 시간 갱신
+        member.setLastLogin(
+            LocalDateTime.now()
+        );
+
+        obMemberRepository.save(member);
+
+        // React에 필요한 회원정보만 반환
+        return LoginResponseDTO.builder()
+            .no(member.getNo())
+            .id(member.getId())
+            .name(member.getName())
+            .email(member.getEmail())
+            .role(member.getRole())
+            .build();
     }
 
     /**
@@ -218,4 +296,6 @@ public class ObMemberService {
             .cdate(member.getCdate())
             .build();
     }
+    
+    
 }

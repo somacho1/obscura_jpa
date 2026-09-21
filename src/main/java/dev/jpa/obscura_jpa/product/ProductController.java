@@ -159,4 +159,19 @@ public class ProductController {
                 .body(e.getMessage());
         }
     }
+       
+    /**
+     * 사용자 상품 상세페이지 조회
+     *
+     * PRODUCT + PRODUCTIMAGE + PRODUCTOPTION + STOCK 데이터를
+     * 상세페이지용 DTO로 조합해서 반환한다.
+     */
+    @GetMapping("/{no}/detail")
+    public ResponseEntity<ProductDetailDTO> findDetailByNo(
+        @PathVariable("no") Long no
+    ) {
+        return ResponseEntity.ok(
+            productService.findDetailByNo(no)
+        );
+    }
 }
