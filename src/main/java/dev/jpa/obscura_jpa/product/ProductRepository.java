@@ -19,11 +19,15 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findAllByCategoryNoOrderByNoDesc(Long cno);
 
     // 브랜드 + 카테고리 상품
-    List<Product> findAllByBrandNoAndCategoryNoOrderByNoDesc(
-        Long bno,
-        Long cno
-    );
+    List<Product> findAllByBrandNoAndCategoryNoOrderByNoDesc(Long bno, Long cno);
 
     // 상품명 검색
     List<Product> findByNameContainingIgnoreCaseOrderByNoDesc(String name);
+
+    // 특정 브랜드의 전체 상품 수
+    long countByBrandNo(Long bno);
+
+    // 특정 브랜드의 할인 상품 수
+    // DISCOUNTRATE > 0 인 상품만 계산
+    long countByBrandNoAndDiscountRateGreaterThan(Long bno, Integer discountRate);
 }

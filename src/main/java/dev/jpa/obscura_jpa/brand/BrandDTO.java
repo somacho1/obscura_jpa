@@ -11,8 +11,8 @@ import lombok.Setter;
 /**
  * 브랜드 DTO
  *
- * 브랜드 등록, 조회, 수정 시
- * Controller와 Service 사이에서 데이터를 전달한다.
+ * 브랜드 기본정보와 관리자 화면에서 필요한
+ * 상품 수, 할인 상품 수를 전달한다.
  */
 @Getter
 @Setter
@@ -41,4 +41,10 @@ public class BrandDTO {
 
     /** 브랜드 등록일시 */
     private LocalDateTime cdate;
+
+    /** 해당 브랜드 전체 상품 수 */
+    private Long productCount;
+
+    /** 해당 브랜드 할인 상품 수 */
+    private Long saleProductCount;
 }
