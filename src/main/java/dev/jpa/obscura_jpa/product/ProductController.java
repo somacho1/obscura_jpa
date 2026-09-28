@@ -21,11 +21,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductPermanentDeleteService permanentDeleteService;
 
-    public ProductController(ProductService productService) {
+
+    public ProductController(ProductService productService, ProductPermanentDeleteService permanentDeleteService) {
         this.productService = productService;
+        this.permanentDeleteService = permanentDeleteService;
     }
-
     // 상품 등록
     @PostMapping
     public ResponseEntity<?> createProduct(@RequestBody ProductDTO dto) {
@@ -152,6 +154,20 @@ public class ProductController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+    
+ // 주문 이력이 없는 상품만 영구 삭제합니다. 기존 DELETE /{no}는 판매중지 용도로 유지합니다.
+    @DeleteMapping("/{no}/permanent")
+    public ResponseEntity<?> deletePermanently(@PathVariable("no") Long no) {
+        try {
+            permanentDeleteService.delete(no);
+            return ResponseEntity.noContent().build(); // 삭제 성공: 204
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage()); // 주문 이력 있음: 409
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage()); // 상품 없음: 400
+        }
+    }
+    
 
     // 상품 비활성화
     @DeleteMapping("/{no}")

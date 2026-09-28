@@ -35,6 +35,10 @@ public class Product {
     @SequenceGenerator(name = "product_seq_generator", sequenceName = "PRODUCT_SEQ", allocationSize = 1)
     @Column(name = "NO")
     private Long no;
+    
+     // 모든 상품에 필수인 고유 상품 코드
+    @Column(name = "CODE", nullable = false, length = 50)
+    private String code;
 
     // PRODUCT.BNO → BRAND.NO
     @ManyToOne(fetch = FetchType.LAZY)

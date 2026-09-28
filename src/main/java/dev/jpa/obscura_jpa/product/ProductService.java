@@ -94,8 +94,20 @@ public class ProductService {
                 "할인율은 0~100 사이여야 합니다."
             );
         }
+        
+     // 신규 상품은 CODE를 반드시 입력합니다. 앞뒤 공백을 제거하고 대문자로 저장합니다.
+        if (dto.getCode() == null || dto.getCode().isBlank()) {
+            throw new IllegalArgumentException("상품 코드를 입력해주세요.");
+        }
+        String code = dto.getCode().trim().toUpperCase(java.util.Locale.ROOT);
+        
+     // 다른 상품에 이미 등록된 CODE라면 저장 전에 안내합니다.
+        if (productRepository.existsByCodeIgnoreCase(code)) {
+            throw new IllegalArgumentException("이미 사용 중인 상품 코드입니다.");
+        }
 
         Product product = Product.builder()
+            .code(code)
             .brand(brand)
             .category(category)
             .name(dto.getName())
@@ -258,6 +270,7 @@ public class ProductService {
          */
         return ProductDetailDTO.builder()
             .no(product.getNo())
+            .code(product.getCode())
 
             .bno(product.getBrand().getNo())
             .brandName(product.getBrand().getName())
@@ -350,6 +363,17 @@ public class ProductService {
             .orElseThrow(() ->
                 new IllegalArgumentException("존재하지 않는 상품입니다.")
             );
+        
+     // 수정 요청에 CODE가 있을 때만 중복을 확인하고 변경합니다.
+        if (dto.getCode() != null) {
+            if (dto.getCode().isBlank()) throw new IllegalArgumentException("상품 코드는 비워둘 수 없습니다.");
+
+            String code = dto.getCode().trim().toUpperCase(java.util.Locale.ROOT);
+            if (productRepository.existsByCodeIgnoreCaseAndNoNot(code, no)) {
+                throw new IllegalArgumentException("이미 사용 중인 상품 코드입니다.");
+            }
+            product.setCode(code);
+        }
 
         // 브랜드 변경
         if (dto.getBno() != null) {
@@ -406,9 +430,6 @@ public class ProductService {
             product.setDetail(dto.getDetail());
         }
         
-        if (dto.getDetail() != null) {
-          product.setDetail(dto.getDetail());
-        }
 
       if (dto.getSizeDetail() != null) {
           product.setSizeDetail(dto.getSizeDetail());
@@ -526,7 +547,6 @@ public class ProductService {
             product.getDiscountRate() == null
                 ? 0
                 : product.getDiscountRate();
-
         // 할인 적용 판매가격
         long salePrice =
             product.getPrice()
@@ -549,6 +569,7 @@ public class ProductService {
 
         return ProductDTO.builder()
             .no(product.getNo())
+            .code(product.getCode())
 
             .bno(product.getBrand().getNo())
             .brandName(product.getBrand().getName())

@@ -30,4 +30,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // 특정 브랜드의 할인 상품 수
     // DISCOUNTRATE > 0 인 상품만 계산
     long countByBrandNoAndDiscountRateGreaterThan(Long bno, Integer discountRate);
+    
+    // 상품 등록 시 같은 CODE가 이미 있는지 확인합니다.
+    boolean existsByCodeIgnoreCase(String code);
+
+    // 상품 수정 시 현재 상품을 제외하고 같은 CODE가 있는지 확인합니다.
+    boolean existsByCodeIgnoreCaseAndNoNot(String code, Long no);
 }

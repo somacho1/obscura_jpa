@@ -22,6 +22,9 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class ProductDetailDTO {
+  
+    //PRODUCT.CODE - 관리자 상품 코드
+    private String code;
 
     // PRODUCT.NO - 상품번호
     private Long no;

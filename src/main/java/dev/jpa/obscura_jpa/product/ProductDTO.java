@@ -16,6 +16,9 @@ import lombok.Setter;
 public class ProductDTO {
 
     private Long no;
+    
+    // 관리자가 등록하는 고유 상품 코드
+    private String code;
 
     // 브랜드번호
     private Long bno;
