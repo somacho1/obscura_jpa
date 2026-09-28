@@ -141,6 +141,17 @@ public class ProductController {
                 .body(e.getMessage());
         }
     }
+    
+ // 관리자 선택 상품 할인율 일괄 적용
+    @PutMapping("/bulk-discount")
+    public ResponseEntity<?> updateBulkDiscount(@RequestBody ProductBulkDiscountDTO dto) {
+        try {
+            productService.updateBulkDiscount(dto);
+            return ResponseEntity.ok().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 
     // 상품 비활성화
     @DeleteMapping("/{no}")

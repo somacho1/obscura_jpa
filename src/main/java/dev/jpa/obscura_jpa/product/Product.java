@@ -11,6 +11,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
@@ -30,15 +31,8 @@ import lombok.Setter;
 public class Product {
 
     @Id
-    @GeneratedValue(
-        strategy = GenerationType.SEQUENCE,
-        generator = "product_seq_generator"
-    )
-    @SequenceGenerator(
-        name = "product_seq_generator",
-        sequenceName = "PRODUCT_SEQ",
-        allocationSize = 1
-    )
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "product_seq_generator")
+    @SequenceGenerator(name = "product_seq_generator", sequenceName = "PRODUCT_SEQ", allocationSize = 1)
     @Column(name = "NO")
     private Long no;
 
@@ -55,8 +49,15 @@ public class Product {
     @Column(name = "NAME", nullable = false, length = 200)
     private String name;
 
+    // 상세페이지 INFO 탭
     @Column(name = "DETAIL", length = 2000)
     private String detail;
+
+    // 상세페이지 SIZE 탭
+    // Oracle CLOB에 사이즈 가이드 JSON 문자열 저장
+    @Lob
+    @Column(name = "SIZEDETAIL")
+    private String sizeDetail;
 
     @Column(name = "PRICE", nullable = false)
     private Long price;

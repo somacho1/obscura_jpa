@@ -100,6 +100,7 @@ public class ProductService {
             .category(category)
             .name(dto.getName())
             .detail(dto.getDetail())
+            .sizeDetail(dto.getSizeDetail())
             .price(dto.getPrice())
             .discountRate(discountRate)
             .statusNo(1)
@@ -266,6 +267,7 @@ public class ProductService {
 
             .name(product.getName())
             .detail(product.getDetail())
+            .sizeDetail(product.getSizeDetail())
 
             .price(product.getPrice())
             .discountRate(discountRate)
@@ -403,6 +405,14 @@ public class ProductService {
         if (dto.getDetail() != null) {
             product.setDetail(dto.getDetail());
         }
+        
+        if (dto.getDetail() != null) {
+          product.setDetail(dto.getDetail());
+        }
+
+      if (dto.getSizeDetail() != null) {
+          product.setSizeDetail(dto.getSizeDetail());
+       }
 
         if (dto.getPrice() != null) {
 
@@ -450,6 +460,36 @@ public class ProductService {
         return toDTO(
             productRepository.save(product)
         );
+    }
+    
+ // 관리자 선택 상품 할인율 일괄 적용
+    public void updateBulkDiscount(ProductBulkDiscountDTO dto) {
+
+        // 선택한 상품이 없는 경우
+        if (dto.getProductNos() == null || dto.getProductNos().isEmpty()) {
+            throw new IllegalArgumentException("할인 적용할 상품을 선택해주세요.");
+        }
+
+        // 할인율이 없거나 0~100 범위를 벗어난 경우
+        if (dto.getDiscountRate() == null || dto.getDiscountRate() < 0 || dto.getDiscountRate() > 100) {
+            throw new IllegalArgumentException("할인율은 0~100 사이여야 합니다.");
+        }
+
+        // 관리자가 선택한 상품번호들을 한 번에 조회
+        List<Product> products = productRepository.findAllById(dto.getProductNos());
+
+        // 존재하지 않는 상품번호가 포함된 경우
+        if (products.size() != dto.getProductNos().size()) {
+            throw new IllegalArgumentException("존재하지 않는 상품이 포함되어 있습니다.");
+        }
+
+        // 선택한 모든 상품에 동일한 할인율 적용
+        for (Product product : products) {
+            product.setDiscountRate(dto.getDiscountRate());
+        }
+
+        // 변경된 상품들을 저장
+        productRepository.saveAll(products);
     }
 
     // 상품 비활성화
@@ -518,6 +558,7 @@ public class ProductService {
 
             .name(product.getName())
             .detail(product.getDetail())
+            .sizeDetail(product.getSizeDetail())
 
             .price(product.getPrice())
             .discountRate(discountRate)

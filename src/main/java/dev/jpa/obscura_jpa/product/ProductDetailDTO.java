@@ -41,8 +41,11 @@ public class ProductDetailDTO {
     // 상품명
     private String name;
 
-    // 상품 설명
+    // 상세페이지 INFO 탭
     private String detail;
+
+    // 상세페이지 SIZE 탭 - 사이즈 가이드 JSON
+    private String sizeDetail;
 
     // 정가
     private Long price;
