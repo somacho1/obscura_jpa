@@ -1,10 +1,12 @@
 package dev.jpa.obscura_jpa.product;
 
 import java.util.List;
-
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface ProductRepository extends JpaRepository<Product, Long> {
+// JpaRepository: 기존 저장·조회 기능
+// JpaSpecificationExecutor: 카테고리·할인 조건을 조합하고 페이지 단위로 조회하는 기능
+public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
 
     // 전체 상품 최신순
     List<Product> findAllByOrderByNoDesc();
@@ -28,9 +30,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     long countByBrandNo(Long bno);
 
     // 특정 브랜드의 할인 상품 수
-    // DISCOUNTRATE > 0 인 상품만 계산
     long countByBrandNoAndDiscountRateGreaterThan(Long bno, Integer discountRate);
-    
+
     // 상품 등록 시 같은 CODE가 이미 있는지 확인합니다.
     boolean existsByCodeIgnoreCase(String code);
 

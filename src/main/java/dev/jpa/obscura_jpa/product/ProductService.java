@@ -16,6 +16,14 @@ import dev.jpa.obscura_jpa.productoption.ProductOption;
 import dev.jpa.obscura_jpa.productoption.ProductOptionRepository;
 import dev.jpa.obscura_jpa.stock.StockRepository;
 
+import java.util.ArrayList;
+import java.util.Locale;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
+import jakarta.persistence.criteria.Expression;
+import jakarta.persistence.criteria.Predicate;
+
 @Service
 @Transactional
 public class ProductService {
@@ -142,6 +150,86 @@ public class ProductService {
             .stream()
             .map(this::toDTO)
             .toList();
+    }
+    
+    // 사용자 상품 목록: 판매중 상품을 카테고리·SALE 조건으로 조회하고 서버에서 정렬·페이징합니다.
+    @Transactional(readOnly = true)
+    public Page<ProductDTO> findProductPage(Long cno, boolean saleOnly, int page, int size, String sort) {
+        return findProductPage(cno, saleOnly, page, size, sort, null);
+    }
+
+    // 검색어가 있으면 상품명·브랜드명·CODE 검색 조건을 함께 적용합니다.
+    @Transactional(readOnly = true)
+    public Page<ProductDTO> findProductPage(Long cno, boolean saleOnly, int page, int size, String sort, String keyword) {
+
+        // 화면의 페이지 번호는 1부터 시작합니다. 과도한 조회를 막기 위해 최대 100개로 제한합니다.
+        if (page < 1) throw new IllegalArgumentException("페이지 번호는 1 이상이어야 합니다.");
+        if (size < 1 || size > 100) throw new IllegalArgumentException("페이지당 상품 수는 1~100개여야 합니다.");
+        if (cno != null && cno <= 0) throw new IllegalArgumentException("잘못된 카테고리 번호입니다.");
+
+        // 허용된 정렬값만 사용합니다. 인기순은 판매량 집계 기능을 만든 뒤 추가합니다.
+        String sortType = sort == null ? "LATEST" : sort.trim().toUpperCase(Locale.ROOT);
+        if (!List.of("LATEST", "PRICE_LOW", "PRICE_HIGH").contains(sortType)) {
+            throw new IllegalArgumentException("지원하지 않는 정렬 방식입니다.");
+        }
+        
+        // 검색어의 앞뒤 공백을 제거하고 대소문자를 구분하지 않습니다.
+        String searchKeyword = keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
+        if (searchKeyword.length() > 100) throw new IllegalArgumentException("검색어는 100자 이내로 입력해주세요.");
+
+        Specification<Product> specification = (root, query, cb) -> {
+
+            List<Predicate> conditions = new ArrayList<>();
+
+            // 사용자에게는 판매중 상품만 노출합니다.
+            conditions.add(cb.equal(root.get("statusNo"), 1));
+
+            // 카테고리 번호가 없으면 전체 상품, 있으면 해당 카테고리 상품을 조회합니다.
+            if (cno != null) conditions.add(cb.equal(root.get("category").get("no"), cno));
+            
+            // SALE 메뉴에서는 할인율이 0보다 큰 상품만 조회합니다.
+            if (saleOnly) conditions.add(cb.greaterThan(root.<Integer>get("discountRate"), 0));
+
+            // 상품명·브랜드명·CODE 중 하나라도 검색어를 포함하면 조회합니다.
+            if (!searchKeyword.isEmpty()) {
+                conditions.add(cb.or(
+                    cb.greaterThan(cb.locate(cb.lower(root.<String>get("name")), searchKeyword), 0),
+                    cb.greaterThan(cb.locate(cb.lower(root.get("brand").<String>get("name")), searchKeyword), 0),
+                    cb.greaterThan(cb.locate(cb.lower(root.<String>get("code")), searchKeyword), 0)
+                ));
+            }
+
+            // 전체 상품 수를 계산하는 COUNT 쿼리에는 정렬을 넣지 않습니다.
+
+            // SALE 메뉴에서는 할인율이 0보다 큰 상품만 조회합니다.
+            if (saleOnly) conditions.add(cb.greaterThan(root.<Integer>get("discountRate"), 0));
+
+            // 전체 상품 수를 계산하는 COUNT 쿼리에는 정렬을 넣지 않습니다.
+            if (query != null && !Long.class.equals(query.getResultType()) && !long.class.equals(query.getResultType())) {
+
+                // DTO의 판매가격 계산과 동일하게 할인 적용 후 소수점 이하를 버립니다.
+                Expression<Number> salePrice = cb.function(
+                    "floor", Number.class,
+                    cb.quot(
+                        cb.prod(root.<Long>get("price"), cb.diff(100, cb.coalesce(root.<Integer>get("discountRate"), 0))),
+                        100.0
+                    )
+                );
+
+                // 같은 가격·등록일의 상품도 순서가 일정하도록 상품번호를 보조 정렬로 사용합니다.
+                switch (sortType) {
+                    case "PRICE_LOW" -> query.orderBy(cb.asc(salePrice), cb.desc(root.get("no")));
+                    case "PRICE_HIGH" -> query.orderBy(cb.desc(salePrice), cb.desc(root.get("no")));
+                    default -> query.orderBy(cb.desc(root.get("cdate")), cb.desc(root.get("no")));
+                }
+            }
+
+            return cb.and(conditions.toArray(new Predicate[0]));
+        };
+
+        // JPA는 페이지 번호가 0부터 시작하므로 화면 번호에서 1을 뺍니다.
+        // 해당 페이지의 상품만 DTO로 변환하며 전체 상품 수·페이지 수는 유지합니다.
+        return productRepository.findAll(specification, PageRequest.of(page - 1, size)).map(this::toDTO);
     }
 
     // 상품번호 조회

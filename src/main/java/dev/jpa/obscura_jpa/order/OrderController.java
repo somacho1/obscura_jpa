@@ -88,6 +88,22 @@ public class OrderController {
                 .body(e.getMessage());
         }
     }
+    
+ // 결제 대기 주문을 취소합니다.
+ // 요청 예: PUT /api/orders/2/cancel-pending
+ // 요청 본문: { "mno": 1 }
+ @PutMapping("/{no}/cancel-pending")
+ public ResponseEntity<?> cancelPendingOrder(
+     @PathVariable("no") Long no,
+     @RequestBody OrderDTO dto
+ ) {
+     try {
+         // Service에서 주문 상태·회원번호를 확인하고 재고를 복구합니다.
+         return ResponseEntity.ok(orderService.cancelPendingOrder(no, dto.getMno()));
+     } catch (IllegalArgumentException e) {
+         return ResponseEntity.badRequest().body(e.getMessage());
+     }
+ }
 
     // 주문상태 변경
     @PutMapping("/{no}/status")

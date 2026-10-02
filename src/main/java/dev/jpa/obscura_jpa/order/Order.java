@@ -45,10 +45,15 @@ public class Order {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "MNO", nullable = false)
     private ObMember member;
-
-    // 주문 전체 금액
+    
+    // 배송비를 포함한 최종 주문 금액
     @Column(name = "TOTALPRICE", nullable = false)
     private Long totalPrice;
+
+    // 주문 당시 배송비: 이후 배송 정책이 변경돼도 유지합니다.
+    @Builder.Default
+    @Column(name = "SHIPPINGFEE", nullable = false)
+    private Long shippingFee = 0L;
 
     /*
      * 주문상태

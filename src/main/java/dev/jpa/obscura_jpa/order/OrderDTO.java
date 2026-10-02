@@ -18,11 +18,20 @@ import lombok.Setter;
 public class OrderDTO {
 
     private Long no;
+    
+    // 선택 주문할 CARTITEM 번호 목록입니다. 상품번호·옵션번호와 구분합니다.
+    private List<Long> cartItemNos;
+    
+    // 이번 주문에 사용할 배송지입니다.
+    private OrderDeliveryDTO delivery;
 
     // 주문 요청 시 회원번호
     private Long mno;
 
     private Long totalPrice;
+    
+    // 응답용 배송비입니다. 주문 생성 시 클라이언트 값은 사용하지 않습니다.
+    private Long shippingFee;
 
     private Integer statusNo;
 

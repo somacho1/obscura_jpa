@@ -57,6 +57,24 @@ public class ProductController {
     public ResponseEntity<List<ProductDTO>> findActiveProducts() {
         return ResponseEntity.ok(productService.findActiveProducts());
     }
+    
+    // 사용자 상품 목록: 검색·카테고리·SALE·정렬·페이징 조건을 함께 처리합니다.
+    @GetMapping("/page")
+    public ResponseEntity<?> findProductPage(
+        @RequestParam(value = "cno", required = false) Long cno,
+        @RequestParam(value = "saleOnly", defaultValue = "false") boolean saleOnly,
+        @RequestParam(value = "page", defaultValue = "1") int page,
+        @RequestParam(value = "size", defaultValue = "24") int size,
+        @RequestParam(value = "sort", defaultValue = "LATEST") String sort,
+        @RequestParam(value = "keyword", required = false) String keyword
+    ) {
+        try {
+            // 검색어까지 전달하여 상품명·브랜드명·CODE를 검색합니다.
+            return ResponseEntity.ok(productService.findProductPage(cno, saleOnly, page, size, sort, keyword));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 
     // 상품명 검색
     @GetMapping("/search")
