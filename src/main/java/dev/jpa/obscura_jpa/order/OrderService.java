@@ -8,6 +8,8 @@ import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 import dev.jpa.obscura_jpa.cart.Cart;
 import dev.jpa.obscura_jpa.cart.CartRepository;
@@ -27,6 +29,7 @@ import dev.jpa.obscura_jpa.delivery.DeliveryService;
 import dev.jpa.obscura_jpa.deliveryitem.DeliveryItemDTO;
 import dev.jpa.obscura_jpa.deliveryitem.DeliveryItemService;
 import dev.jpa.obscura_jpa.payment.PaymentRepository;
+
 
 @Service
 @Transactional
@@ -216,6 +219,32 @@ public class OrderService {
 
     // 7. 결과 반환
     return toDTO(order, orderItemDTOs);
+  }
+  
+  // 관리자 주문 목록을 최신 주문부터 페이지 단위로 조회합니다.
+  @Transactional(readOnly = true)
+  public Page<OrderDTO> findAdminOrderPage(int page, int size) {
+      // 화면은 1페이지부터 시작하며 과도한 조회를 막기 위해 최대 100개로 제한합니다.
+      if (page < 1) {
+          throw new IllegalArgumentException("페이지 번호는 1 이상이어야 합니다.");
+      }
+      if (size < 1 || size > 100) {
+          throw new IllegalArgumentException("페이지당 주문 수는 1~100개여야 합니다.");
+      }
+
+      // Repository의 등록일·주문번호 정렬을 사용합니다.
+      return orderRepository
+          .findAllByOrderByCdateDescNoDesc(PageRequest.of(page - 1, size))
+          .map(order -> {
+              // 주문 당시 저장된 상품명·옵션·가격을 기존 응답 구조로 변환합니다.
+              List<OrderItemDTO> items = orderItemRepository
+                  .findAllByOrderNoOrderByNoAsc(order.getNo())
+                  .stream()
+                  .map(this::toOrderItemDTO)
+                  .toList();
+
+              return toDTO(order, items);
+          });
   }
 
   // =====================================================

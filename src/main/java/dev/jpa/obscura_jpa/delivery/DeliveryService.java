@@ -102,38 +102,126 @@ public class DeliveryService {
             .stream().map(this::toDTO).toList();
     }
 
-    // 배송 시작: 택배사와 송장번호를 등록합니다.
+    // 출고 처리: 송장정보·배송 상태·주문 상태를 함께 저장합니다.
     public DeliveryDTO startShipping(Long no, DeliveryDTO dto) {
-        Delivery delivery = deliveryRepository.findById(no)
-            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 배송정보입니다."));
-
-        if (dto.getCompany() == null || dto.getCompany().isBlank()) {
-            throw new IllegalArgumentException("택배사는 필수입니다.");
+        if (no == null || no <= 0) {
+            throw new IllegalArgumentException("잘못된 배송번호입니다.");
+        }
+        if (dto == null || dto.getCompany() == null || dto.getCompany().isBlank()) {
+            throw new IllegalArgumentException("택배사를 입력해주세요.");
         }
         if (dto.getTrackingNo() == null || dto.getTrackingNo().isBlank()) {
-            throw new IllegalArgumentException("송장번호는 필수입니다.");
+            throw new IllegalArgumentException("송장번호를 입력해주세요.");
         }
 
-        delivery.setCompany(dto.getCompany().trim());
-        delivery.setTrackingNo(dto.getTrackingNo().trim());
-        delivery.setStatusNo(1);
-        delivery.setShipDate(LocalDateTime.now());
+        String company = dto.getCompany().trim();
+        String trackingNo = dto.getTrackingNo().trim();
 
-        return toDTO(delivery);
-    }
+        // DB 컬럼의 최대 길이를 초과하지 않도록 검증합니다.
+        if (company.length() > 50) {
+            throw new IllegalArgumentException("택배사는 50자 이내로 입력해주세요.");
+        }
+        if (trackingNo.length() > 100) {
+            throw new IllegalArgumentException("송장번호는 100자 이내로 입력해주세요.");
+        }
 
-    // 배송중 상태인 배송만 완료 처리합니다.
-    public DeliveryDTO completeShipping(Long no) {
+        Long ordno = deliveryRepository.findOrderNoByDeliveryNo(no)
+            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 배송정보입니다."));
+
+        // 입금 확인·주문 취소와 동일한 주문 잠금을 사용합니다.
+        // 같은 주문의 출고 요청도 순서대로 처리됩니다.
+        Order order = orderRepository.findByNoForUpdate(ordno)
+            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+
         Delivery delivery = deliveryRepository.findById(no)
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 배송정보입니다."));
 
-        if (delivery.getStatusNo() != 1) {
-            throw new IllegalArgumentException("배송중인 배송만 완료처리할 수 있습니다.");
+        Integer orderStatus = order.getStatusNo();
+
+        // 결제 완료·상품 준비 주문만 출고합니다.
+        // 부분배송을 위해 이미 배송 중인 주문의 남은 배송도 허용합니다.
+        if (!Integer.valueOf(2).equals(orderStatus)
+            && !Integer.valueOf(3).equals(orderStatus)
+            && !Integer.valueOf(4).equals(orderStatus)) {
+            throw new IllegalArgumentException("결제 완료 후 출고할 수 있습니다.");
+        }
+
+        // 동일한 요청이 반복되면 기존 출고일을 유지합니다.
+        if (Integer.valueOf(1).equals(delivery.getStatusNo())) {
+            if (company.equals(delivery.getCompany())
+                && trackingNo.equals(delivery.getTrackingNo())) {
+                return toDTO(delivery);
+            }
+            throw new IllegalArgumentException("이미 출고된 배송입니다. 송장 수정은 별도로 처리해주세요.");
+        }
+
+        if (!Integer.valueOf(0).equals(delivery.getStatusNo())) {
+            throw new IllegalArgumentException("배송 준비 상태에서만 출고할 수 있습니다.");
+        }
+
+        // 주문·배송 엔티티는 같은 트랜잭션에서 함께 저장됩니다.
+        delivery.setCompany(company);
+        delivery.setTrackingNo(trackingNo);
+        delivery.setStatusNo(1);
+        delivery.setShipDate(LocalDateTime.now());
+        order.setStatusNo(4);
+
+        // 재고는 주문 생성 시 차감했으므로 출고 시 다시 차감하지 않습니다.
+        return toDTO(delivery);
+    }
+    // 개별 배송을 완료하고, 모든 배송이 완료되면 주문도 완료합니다.
+    public DeliveryDTO completeShipping(Long no) {
+        if (no == null || no <= 0) {
+            throw new IllegalArgumentException("잘못된 배송번호입니다.");
+        }
+
+        // 출고 처리에서 추가한 조회 메서드를 그대로 사용합니다.
+        Long ordno = deliveryRepository.findOrderNoByDeliveryNo(no)
+            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 배송정보입니다."));
+
+        // 같은 주문의 출고·취소·배송 완료 요청을 순서대로 처리합니다.
+        Order order = orderRepository.findByNoForUpdate(ordno)
+            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+
+        // 주문 잠금을 얻은 뒤 최신 배송 상태를 조회합니다.
+        Delivery delivery = deliveryRepository.findById(no)
+            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 배송정보입니다."));
+
+        Integer orderStatus = order.getStatusNo();
+
+        // 이미 완료된 동일 요청은 완료일시를 덮어쓰지 않습니다.
+        if (Integer.valueOf(2).equals(delivery.getStatusNo())) {
+            if (!Integer.valueOf(4).equals(orderStatus)
+                && !Integer.valueOf(5).equals(orderStatus)) {
+                throw new IllegalArgumentException("주문 상태와 배송 상태를 확인해주세요.");
+            }
+            return toDTO(delivery);
+        }
+
+        if (!Integer.valueOf(4).equals(orderStatus)) {
+            throw new IllegalArgumentException("배송 중인 주문만 배송 완료 처리할 수 있습니다.");
+        }
+        if (!Integer.valueOf(1).equals(delivery.getStatusNo())) {
+            throw new IllegalArgumentException("배송 중인 배송만 완료 처리할 수 있습니다.");
         }
 
         delivery.setStatusNo(2);
         delivery.setDeliveryDate(LocalDateTime.now());
 
+        // 이번 배송의 변경사항을 DB에 반영한 뒤 전체 배송 상태를 조회합니다.
+        // flush는 커밋이 아니므로 이후 오류가 나면 함께 롤백됩니다.
+        deliveryRepository.flush();
+
+        List<Delivery> deliveries = deliveryRepository.findAllByOrderNoOrderByNoAsc(ordno);
+        boolean allCompleted = !deliveries.isEmpty()
+            && deliveries.stream().allMatch(item -> Integer.valueOf(2).equals(item.getStatusNo()));
+
+        // 배송 준비 또는 배송 중인 항목이 남아 있으면 주문은 배송 중을 유지합니다.
+        if (allCompleted) {
+            order.setStatusNo(5);
+        }
+
+        // 클래스의 @Transactional에 의해 주문·배송이 함께 저장됩니다.
         return toDTO(delivery);
     }
 

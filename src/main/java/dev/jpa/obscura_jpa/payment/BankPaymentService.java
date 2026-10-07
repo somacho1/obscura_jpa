@@ -82,6 +82,55 @@ public class BankPaymentService {
         // 실제 입금 확인 전이므로 승인일시와 주문 완료 상태를 설정하지 않습니다.
         return toDTO(paymentRepository.saveAndFlush(payment));
     }
+    
+    // 관리자 입금 확인: 결제와 주문을 하나의 트랜잭션으로 완료 처리합니다.
+    @Transactional
+    public PaymentDTO confirmDeposit(Long ordno) {
+        if (ordno == null || ordno <= 0) {
+            throw new IllegalArgumentException("잘못된 주문번호입니다.");
+        }
+
+        // 주문 취소와 입금 확인이 동시에 실행되지 않도록 같은 주문을 잠급니다.
+        Order order = orderRepository.findByNoForUpdate(ordno)
+            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+
+        Payment payment = paymentRepository.findByOrderNo(ordno)
+            .orElseThrow(() -> new IllegalArgumentException("무통장입금 신청 정보가 없습니다."));
+
+        // Toss 결제는 이 메서드로 완료 처리할 수 없습니다.
+        if (!"BANK".equals(payment.getMethod())) {
+            throw new IllegalArgumentException("무통장입금 주문만 입금 확인할 수 있습니다.");
+        }
+
+        // 결제금액은 화면에서 받지 않고 저장된 주문 금액과 비교합니다.
+        if (payment.getAmount() == null || !payment.getAmount().equals(order.getTotalPrice())) {
+            throw new IllegalArgumentException("주문 금액과 결제 금액이 일치하지 않습니다.");
+        }
+
+        // 같은 요청이 다시 들어와도 승인일시를 덮어쓰지 않습니다.
+        if (Integer.valueOf(1).equals(payment.getStatusNo())) {
+            if (order.getStatusNo() == null || order.getStatusNo() < 2 || order.getStatusNo() > 5) {
+                throw new IllegalArgumentException("결제 상태와 주문 상태를 확인해주세요.");
+            }
+            return toDTO(payment);
+        }
+
+        // 취소·환불된 결제나 결제 대기가 아닌 주문은 완료 처리하지 않습니다.
+        if (!Integer.valueOf(0).equals(payment.getStatusNo())) {
+            throw new IllegalArgumentException("입금 대기 결제만 확인할 수 있습니다.");
+        }
+        if (!Integer.valueOf(1).equals(order.getStatusNo())) {
+            throw new IllegalArgumentException("결제 대기 주문만 입금 확인할 수 있습니다.");
+        }
+
+        payment.setStatusNo(1);
+        payment.setApproveDate(LocalDateTime.now());
+        order.setStatusNo(2);
+
+        // 조회한 엔티티의 변경사항은 트랜잭션 커밋 시 함께 저장됩니다.
+        // 재고는 주문 생성 시 이미 차감했으므로 여기서 다시 차감하지 않습니다.
+        return toDTO(payment);
+    }
 
     // 기존 PaymentDTO 응답 형식을 사용합니다.
     private PaymentDTO toDTO(Payment payment) {

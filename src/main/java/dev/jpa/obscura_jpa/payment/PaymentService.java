@@ -122,8 +122,10 @@ public class PaymentService {
     return toDTO(payment);
   }
   
-//주문 상세 화면에서 결제정보를 조회합니다.
-//실제 주문이지만 아직 결제를 신청하지 않았다면 null을 반환합니다.
+  /**
+    * 주문 상세 화면에서 결제정보를 조회합니다.
+    * 실제 주문이지만 아직 결제를 신청하지 않았다면 null을 반환합니다
+    */
 @Transactional(readOnly = true)
 public PaymentDTO findOptionalByOrder(Long ordno) {
    if (ordno == null || ordno <= 0) {

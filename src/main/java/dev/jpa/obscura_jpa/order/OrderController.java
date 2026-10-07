@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -47,6 +48,22 @@ public class OrderController {
                 .body(e.getMessage());
         }
     }
+    
+    // 관리자 주문 목록: GET /api/orders/admin/page?page=1&size=20
+    // 관리자 권한 검증은 인증·권한 작업에서 연결해야 합니다.
+    @GetMapping("/admin/page")
+    public ResponseEntity<?> findAdminOrderPage(
+        @RequestParam(name = "page", defaultValue = "1") int page,
+        @RequestParam(name = "size", defaultValue = "20") int size
+    ) {
+        try {
+            // 주문 목록과 전체 주문 수·페이지 수를 함께 반환합니다.
+            return ResponseEntity.ok(orderService.findAdminOrderPage(page, size));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
 
     // 회원별 주문내역
     @GetMapping("/member/{mno}")
