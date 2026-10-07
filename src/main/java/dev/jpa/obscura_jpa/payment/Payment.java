@@ -17,6 +17,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+
 /**
  * 결제 Entity.
  *
@@ -72,6 +73,14 @@ public class Payment {
 
     @Column(name = "PAYMENTKEY", length = 200)
     private String paymentKey;
+    
+ // Toss 결제창과 승인 API에서 사용하는 주문 식별자입니다.
+    @Column(name = "TOSSORDERID", length = 64, unique = true)
+    private String tossOrderId;
+
+    // 첫 승인 시 생성해 저장하고, 동일 요청을 재시도할 때 그대로 사용합니다.
+    @Column(name = "CONFIRMKEY", length = 36, unique = true)
+    private String confirmKey;
 
     @Column(name = "DEPOSITOR", length = 50)
     private String depositor;

@@ -19,126 +19,83 @@ import org.springframework.web.bind.annotation.RestController;
 @CrossOrigin(origins = "*")
 public class PaymentController {
 
-    private final PaymentService paymentService;
+  private final PaymentService paymentService;
 
-    public PaymentController(
-        PaymentService paymentService
-    ) {
-        this.paymentService = paymentService;
+  public PaymentController(PaymentService paymentService) {
+    this.paymentService = paymentService;
+  }
+
+  /**
+   * 결제정보 생성.
+   */
+  @PostMapping
+  public ResponseEntity<?> create(@RequestBody PaymentDTO dto) {
+
+    try {
+
+      return ResponseEntity.status(HttpStatus.CREATED).body(paymentService.create(dto));
+
+    } catch (IllegalArgumentException e) {
+
+      return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
     }
+  }
 
-    /**
-     * 결제정보 생성.
-     */
-    @PostMapping
-    public ResponseEntity<?> create(
-        @RequestBody PaymentDTO dto
-    ) {
+  /**
+   * 전체 결제정보 조회.
+   */
+  @GetMapping
+  public ResponseEntity<List<PaymentDTO>> findAll() {
 
-        try {
+    return ResponseEntity.ok(paymentService.findAll());
+  }
 
-            return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(paymentService.create(dto));
+  /**
+   * 결제번호로 조회.
+   */
+  @GetMapping("/{no}")
+  public ResponseEntity<?> findByNo(@PathVariable("no") Long no) {
 
-        } catch (IllegalArgumentException e) {
+    try {
 
-            return ResponseEntity
-                .badRequest()
-                .body(Map.of(
-                    "message",
-                    e.getMessage()
-                ));
-        }
+      return ResponseEntity.ok(paymentService.findByNo(no));
+
+    } catch (IllegalArgumentException e) {
+
+      return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
     }
+  }
 
-    /**
-     * 전체 결제정보 조회.
-     */
-    @GetMapping
-    public ResponseEntity<List<PaymentDTO>> findAll() {
+  /**
+   * 주문번호로 결제정보 조회.
+   */
+  @GetMapping("/order/{ordno}")
+  public ResponseEntity<?> findByOrder(@PathVariable("ordno") Long ordno) {
+      try {
+          PaymentDTO payment = paymentService.findOptionalByOrder(ordno);
 
-        return ResponseEntity.ok(
-            paymentService.findAll()
-        );
+          // 주문은 있지만 아직 결제 신청 정보가 없는 정상 상태입니다.
+          if (payment == null) return ResponseEntity.noContent().build();
+
+          return ResponseEntity.ok(payment);
+      } catch (IllegalArgumentException e) {
+          return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+      }
+  }
+
+  /**
+   * 결제상태 변경.
+   */
+  @PutMapping("/{no}/status")
+  public ResponseEntity<?> updateStatus(@PathVariable("no") Long no, @RequestBody PaymentDTO dto) {
+
+    try {
+
+      return ResponseEntity.ok(paymentService.updateStatus(no, dto));
+
+    } catch (IllegalArgumentException e) {
+
+      return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
     }
-
-    /**
-     * 결제번호로 조회.
-     */
-    @GetMapping("/{no}")
-    public ResponseEntity<?> findByNo(
-        @PathVariable("no") Long no
-    ) {
-
-        try {
-
-            return ResponseEntity.ok(
-                paymentService.findByNo(no)
-            );
-
-        } catch (IllegalArgumentException e) {
-
-            return ResponseEntity
-                .badRequest()
-                .body(Map.of(
-                    "message",
-                    e.getMessage()
-                ));
-        }
-    }
-
-    /**
-     * 주문번호로 결제정보 조회.
-     */
-    @GetMapping("/order/{ordno}")
-    public ResponseEntity<?> findByOrder(
-        @PathVariable("ordno") Long ordno
-    ) {
-
-        try {
-
-            return ResponseEntity.ok(
-                paymentService.findByOrder(ordno)
-            );
-
-        } catch (IllegalArgumentException e) {
-
-            return ResponseEntity
-                .badRequest()
-                .body(Map.of(
-                    "message",
-                    e.getMessage()
-                ));
-        }
-    }
-
-    /**
-     * 결제상태 변경.
-     */
-    @PutMapping("/{no}/status")
-    public ResponseEntity<?> updateStatus(
-        @PathVariable("no") Long no,
-        @RequestBody PaymentDTO dto
-    ) {
-
-        try {
-
-            return ResponseEntity.ok(
-                paymentService.updateStatus(
-                    no,
-                    dto
-                )
-            );
-
-        } catch (IllegalArgumentException e) {
-
-            return ResponseEntity
-                .badRequest()
-                .body(Map.of(
-                    "message",
-                    e.getMessage()
-                ));
-        }
-    }
+  }
 }
