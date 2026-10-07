@@ -71,6 +71,16 @@ public class Product {
 
     @Column(name = "STATUSNO", nullable = false)
     private Integer statusNo;
+    
+ // 관리자 선정 상품 여부
+    @Builder.Default
+    @Column(name = "MDPICKYN", nullable = false, length = 1)
+    private String mdPickYn = "N";
+
+    // 추천 상품 표시 순서
+    @Builder.Default
+    @Column(name = "MDSEQNO", nullable = false)
+    private Integer mdSeqNo = 0;
 
     @Column(name = "CDATE", nullable = false)
     private LocalDateTime cdate;

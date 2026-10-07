@@ -219,4 +219,29 @@ public class ProductController {
             productService.findDetailByNo(no)
         );
     }
+    
+ // 메인 MD 추천 상품 조회
+    @GetMapping("/md-picks")
+    public ResponseEntity<?> findMdPicks(
+        @RequestParam(value = "size", defaultValue = "5") int size
+    ) {
+        try {
+            return ResponseEntity.ok(productService.findMdPicks(size));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // 관리자 MD 추천 여부·표시 순서 변경
+    @PutMapping("/{no}/md-pick")
+    public ResponseEntity<?> updateMdPick(
+        @PathVariable("no") Long no,
+        @RequestBody ProductDTO dto
+    ) {
+        try {
+            return ResponseEntity.ok(productService.updateMdPick(no, dto));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 }

@@ -167,15 +167,25 @@ public class ProductService {
         if (size < 1 || size > 100) throw new IllegalArgumentException("페이지당 상품 수는 1~100개여야 합니다.");
         if (cno != null && cno <= 0) throw new IllegalArgumentException("잘못된 카테고리 번호입니다.");
 
-        // 허용된 정렬값만 사용합니다. 인기순은 판매량 집계 기능을 만든 뒤 추가합니다.
+     // 최신순·가격순·판매량 기준 인기순만 허용합니다.
         String sortType = sort == null ? "LATEST" : sort.trim().toUpperCase(Locale.ROOT);
-        if (!List.of("LATEST", "PRICE_LOW", "PRICE_HIGH").contains(sortType)) {
+        if (!List.of("LATEST", "PRICE_LOW", "PRICE_HIGH", "POPULAR").contains(sortType)) {
             throw new IllegalArgumentException("지원하지 않는 정렬 방식입니다.");
         }
         
         // 검색어의 앞뒤 공백을 제거하고 대소문자를 구분하지 않습니다.
         String searchKeyword = keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
         if (searchKeyword.length() > 100) throw new IllegalArgumentException("검색어는 100자 이내로 입력해주세요.");
+        
+     // 인기순도 검색·카테고리·SALE 조건을 그대로 적용합니다.
+        if ("POPULAR".equals(sortType)) {
+            return productRepository.findPopularPage(
+                cno,
+                saleOnly ? 1 : 0,
+                searchKeyword.isEmpty() ? null : searchKeyword,
+                PageRequest.of(page - 1, size)
+            ).map(this::toDTO);
+        }
 
         Specification<Product> specification = (root, query, cb) -> {
 
@@ -676,7 +686,49 @@ public class ProductService {
             .mainImageUrl(mainImageUrl)
 
             .statusNo(product.getStatusNo())
+            .mdPickYn(product.getMdPickYn())
+            .mdSeqNo(product.getMdSeqNo())
             .cdate(product.getCdate())
             .build();
     }
+    
+ // 메인 MD Picks 상품 조회
+    @Transactional(readOnly = true)
+    public List<ProductDTO> findMdPicks(int size) {
+        if (size < 1 || size > 30) {
+            throw new IllegalArgumentException("추천 상품 수는 1~30개여야 합니다.");
+        }
+
+        return productRepository
+            .findByStatusNoAndMdPickYnOrderByMdSeqNoAscCdateDescNoDesc(
+                1, "Y", PageRequest.of(0, size)
+            )
+            .getContent().stream().map(this::toDTO).toList();
+    }
+
+    // 관리자 MD 추천 설정 변경
+    public ProductDTO updateMdPick(Long no, ProductDTO dto) {
+        if (dto == null || dto.getMdPickYn() == null) {
+            throw new IllegalArgumentException("MD 추천 여부를 선택해주세요.");
+        }
+
+        String mdPickYn = dto.getMdPickYn().trim().toUpperCase(Locale.ROOT);
+        if (!List.of("Y", "N").contains(mdPickYn)) {
+            throw new IllegalArgumentException("MD 추천 여부는 Y 또는 N이어야 합니다.");
+        }
+
+        Integer mdSeqNo = dto.getMdSeqNo();
+        if (mdSeqNo == null || mdSeqNo < 0 || mdSeqNo > 999999) {
+            throw new IllegalArgumentException("표시 순서는 0~999999 사이로 입력해주세요.");
+        }
+
+        Product product = productRepository.findById(no)
+            .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다."));
+
+        product.setMdPickYn(mdPickYn);
+        product.setMdSeqNo(mdSeqNo);
+
+        return toDTO(product);
+    }
+    
 }

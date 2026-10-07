@@ -52,5 +52,11 @@ public class ProductDTO {
     private String mainImageUrl;
 
     private Integer statusNo;
+    
+ // 관리자 상품 조회·수정 화면에서 사용합니다.
+    private String mdPickYn;
+    
+    private Integer mdSeqNo;
+    
     private LocalDateTime cdate;
 }
