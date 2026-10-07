@@ -93,4 +93,21 @@ public class Payment {
 
     @Column(name = "CDATE", nullable = false)
     private LocalDateTime cdate;
+    
+ // 취소 요청을 재시도해도 같은 키와 사유를 사용합니다.
+    @Column(name = "CANCELKEY", length = 36)
+    private String cancelKey;
+
+    @Column(name = "CANCELREASON", length = 200)
+    private String cancelReason;
+    
+ // 무통장입금 환불 요청 시 저장합니다.
+    @Column(name = "REFUNDBANK", length = 50)
+    private String refundBank;
+
+    @Column(name = "REFUNDACCOUNT", length = 30)
+    private String refundAccount;
+
+    @Column(name = "REFUNDHOLDER", length = 50)
+    private String refundHolder;
 }

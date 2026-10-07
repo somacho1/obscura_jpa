@@ -262,67 +262,66 @@ public class OrderService {
     }).toList();
   }
 
-  // =====================================================
-  // 주문 상세 조회
-  // =====================================================
-  @Transactional(readOnly = true)
-  public OrderDTO findByNo(Long no) {
+//주문 상세 조회
+@Transactional(readOnly = true)
+public OrderDTO findByNo(Long no) {
+   // 조회에서는 주문 잠금이나 상태 변경 검사를 하지 않습니다.
+   Order order = orderRepository.findById(no)
+       .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
 
-    Order order = orderRepository.findById(no).orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+   List<OrderItemDTO> items = orderItemRepository.findAllByOrderNoOrderByNoAsc(no)
+       .stream().map(this::toOrderItemDTO).toList();
 
-    List<OrderItemDTO> items = orderItemRepository.findAllByOrderNoOrderByNoAsc(no).stream().map(this::toOrderItemDTO)
-        .toList();
+   return toDTO(order, items);
+}
 
-    return toDTO(order, items);
-  }
+//주문 상태 변경
+public OrderDTO updateStatus(Long no, OrderDTO dto) {
+ if (dto == null || dto.getStatusNo() == null) {
+     throw new IllegalArgumentException("주문상태는 필수입니다.");
+ }
 
-  // =====================================================
-  // 주문 상태 변경
-  // 관리자/결제/배송 연동에서 사용
-  // =====================================================
-  public OrderDTO updateStatus(Long no, OrderDTO dto) {
+ int statusNo = dto.getStatusNo();
 
-    Order order = orderRepository.findById(no).orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+ if (statusNo < 0 || statusNo > 5) {
+     throw new IllegalArgumentException("올바르지 않은 주문상태입니다.");
+ }
 
-    if (dto.getStatusNo() == null) {
-      throw new IllegalArgumentException("주문상태는 필수입니다.");
-    }
+ // 취소·출고 처리와 동일한 주문 잠금을 사용합니다.
+ Order order = orderRepository.findByNoForUpdate(no)
+     .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
 
-    if (dto.getStatusNo() < 0 || dto.getStatusNo() > 5) {
-      throw new IllegalArgumentException("올바르지 않은 주문상태입니다.");
-    }
+ // 환불 대기 중에는 주문 상태를 변경하지 않습니다.
+ if (Integer.valueOf(3).equals(order.getCancelStatusNo())) {
+     throw new IllegalArgumentException("취소 처리 중인 주문의 상태는 변경할 수 없습니다.");
+ }
 
-    // 취소는 재고 복구를 포함하는 전용 메서드에서 처리합니다.
-    if (dto.getStatusNo() == 0) {
-      throw new IllegalArgumentException("주문 취소는 전용 취소 API를 사용해주세요.");
-    }
+ // 주문 취소와 재고 복구는 전용 API에서 처리합니다.
+ if (statusNo == 0) {
+     throw new IllegalArgumentException("주문 취소는 전용 취소 API를 사용해주세요.");
+ }
 
-    // 취소된 주문을 상태 변경만으로 다시 활성화하지 않습니다.
-    if (Integer.valueOf(0).equals(order.getStatusNo())) {
-      throw new IllegalArgumentException("취소된 주문의 상태는 변경할 수 없습니다.");
-    }
+ if (Integer.valueOf(0).equals(order.getStatusNo())) {
+     throw new IllegalArgumentException("취소된 주문의 상태는 변경할 수 없습니다.");
+ }
 
-    // 결제 대기 주문은 실제 결제 승인으로만 다음 상태로 변경합니다.
-    // 일반 상태 변경 API로 결제 완료·상품 준비·배송 상태로 건너뛰지 않습니다.
-    if (Integer.valueOf(1).equals(order.getStatusNo()) && !Integer.valueOf(1).equals(dto.getStatusNo())) {
-      throw new IllegalArgumentException("결제 대기 주문은 결제 승인 후 상태를 변경할 수 있습니다.");
-    }
+ // 결제 대기 주문은 실제 결제 승인으로만 진행합니다.
+ if (Integer.valueOf(1).equals(order.getStatusNo()) && statusNo != 1) {
+     throw new IllegalArgumentException("결제 대기 주문은 결제 승인 후 상태를 변경할 수 있습니다.");
+ }
 
-    // 결제 이후 주문을 다시 결제 대기 상태로 되돌리지 않습니다.
-    if (dto.getStatusNo() == 1 && !Integer.valueOf(1).equals(order.getStatusNo())) {
-      throw new IllegalArgumentException("진행된 주문을 결제 대기로 변경할 수 없습니다.");
-    }
+ if (statusNo == 1 && !Integer.valueOf(1).equals(order.getStatusNo())) {
+     throw new IllegalArgumentException("진행된 주문을 결제 대기로 변경할 수 없습니다.");
+ }
 
-    order.setStatusNo(dto.getStatusNo());
+ order.setStatusNo(statusNo);
+ Order saved = orderRepository.save(order);
 
-    Order saved = orderRepository.save(order);
+ List<OrderItemDTO> items = orderItemRepository.findAllByOrderNoOrderByNoAsc(no)
+     .stream().map(this::toOrderItemDTO).toList();
 
-    List<OrderItemDTO> items = orderItemRepository.findAllByOrderNoOrderByNoAsc(no).stream().map(this::toOrderItemDTO)
-        .toList();
-
-    return toDTO(saved, items);
-  }
-
+ return toDTO(saved, items);
+}
   // 결제 대기 주문을 전체 취소하고 차감했던 재고를 복구합니다.
   // 클래스의 @Transactional에 의해 취소 상태와 재고 변경이 함께 저장됩니다.
   public OrderDTO cancelPendingOrder(Long no, Long mno) {

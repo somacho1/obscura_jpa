@@ -132,6 +132,11 @@ public class DeliveryService {
         // 같은 주문의 출고 요청도 순서대로 처리됩니다.
         Order order = orderRepository.findByNoForUpdate(ordno)
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+        
+     // 취소 결과 확인 전에는 출고하지 않습니다.
+        if (Integer.valueOf(3).equals(order.getCancelStatusNo())) {
+            throw new IllegalArgumentException("취소 처리 중인 주문입니다. 취소 결과를 먼저 확인해주세요.");
+        }
 
         Delivery delivery = deliveryRepository.findById(no)
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 배송정보입니다."));

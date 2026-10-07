@@ -72,6 +72,7 @@ public class Order {
      * 0 취소없음
      * 1 부분취소
      * 2 전체취소
+     * 3 전체취소 처리 중 / 결과 확인 필요
      */
     @Column(name = "CANCELSTATUSNO", nullable = false)
     private Integer cancelStatusNo;

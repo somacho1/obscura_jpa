@@ -140,71 +140,48 @@ public PaymentDTO findOptionalByOrder(Long ordno) {
        .orElse(null);
 }
 
-  /**
-   * 결제상태 변경.
-   *
-   * 0 : 결제대기 1 : 결제완료 2 : 부분취소 3 : 전체취소 4 : 결제실패
-   */
-  public PaymentDTO updateStatus(Long no, PaymentDTO dto) {
-
+/**
+ * 일반 결제상태 변경.
+ * Toss와 무통장입금은 각각 전용 API에서 처리합니다.
+ */
+public PaymentDTO updateStatus(Long no, PaymentDTO dto) {
     Payment payment = paymentRepository.findById(no)
         .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 결제정보입니다."));
 
-    if (dto.getStatusNo() == null) {
-      throw new IllegalArgumentException("결제상태는 필수입니다.");
+    if (dto == null || dto.getStatusNo() == null) {
+        throw new IllegalArgumentException("결제상태는 필수입니다.");
     }
 
     int statusNo = dto.getStatusNo();
 
-    // Toss 결제 상태는 실제 승인·조회·취소 결과로만 변경합니다.
-    // 일반 상태 변경 API로 결제 완료나 취소를 임의 처리하지 않습니다.
-    if ("TOSS".equals(payment.getMethod())) {
-      throw new IllegalArgumentException("Toss 결제는 전용 결제 API에서 처리해주세요.");
+    if (statusNo < 0 || statusNo > 4) {
+        throw new IllegalArgumentException("결제상태는 0~4만 가능합니다.");
     }
 
-    if (statusNo < 0 || statusNo > 4) {
-      throw new IllegalArgumentException("결제상태는 0~4만 가능합니다.");
+    // 무통장입금은 입금 확인·환불 전용 API로만 변경합니다.
+    if ("BANK".equals(payment.getMethod())) {
+        throw new IllegalArgumentException("무통장입금은 전용 입금 확인·환불 API를 사용해주세요.");
+    }
+
+    // Toss는 실제 결제 승인·취소 결과를 기준으로 변경합니다.
+    if ("TOSS".equals(payment.getMethod())) {
+        throw new IllegalArgumentException("Toss 결제는 전용 결제 API에서 처리해주세요.");
+    }
+
+    // 실제 환불과 재고 복구 없이 취소 상태만 변경하지 못하게 합니다.
+    if (statusNo == 2 || statusNo == 3) {
+        throw new IllegalArgumentException("결제 취소는 전용 취소·환불 API를 사용해주세요.");
     }
 
     payment.setStatusNo(statusNo);
 
-    /*
-     * 결제완료
-     */
     if (statusNo == 1) {
-
-      payment.setApproveDate(LocalDateTime.now());
-
-      /*
-       * 주문도 결제완료 상태로 변경한다.
-       *
-       * ORDERS.STATUSNO 2 = 결제완료
-       */
-      Order order = payment.getOrder();
-      order.setStatusNo(2);
-    }
-
-    /*
-     * 부분취소 또는 전체취소
-     */
-    if (statusNo == 2 || statusNo == 3) {
-      payment.setCancelDate(LocalDateTime.now());
-    }
-
-    /*
-     * 전체취소라면 주문도 취소상태로 변경.
-     */
-    if (statusNo == 3) {
-
-      Order order = payment.getOrder();
-
-      order.setStatusNo(0);
-      order.setCancelStatusNo(2);
+        payment.setApproveDate(LocalDateTime.now());
+        payment.getOrder().setStatusNo(2);
     }
 
     return toDTO(payment);
-  }
-
+}
   /**
    * Entity → DTO 변환.
    */

@@ -81,4 +81,57 @@ public class TossPaymentClient {
             );
         }
     }
+    
+ // 결제 조회: 취소 응답을 놓친 경우에도 현재 상태를 확인할 수 있습니다.
+    public Map<String, Object> findPayment(String paymentKey) {
+        try {
+            Map<String, Object> result = restClient.get()
+                .uri("/v1/payments/{paymentKey}", paymentKey)
+                .retrieve()
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+
+            if (result == null) {
+                throw new IllegalStateException("Toss 결제 조회 응답이 없습니다.");
+            }
+            return result;
+        } catch (RestClientResponseException e) {
+            throw new IllegalStateException(
+                "Toss 결제 조회에 실패했습니다. (" + e.getStatusCode().value() + ")"
+            );
+        } catch (ResourceAccessException e) {
+            throw new IllegalStateException("Toss 결제 상태를 확인하지 못했습니다. 잠시 후 다시 시도해주세요.");
+        }
+    }
+
+    // 전체 취소: cancelAmount를 생략해 전액 취소합니다.
+    public Map<String, Object> cancelPayment(
+        String paymentKey,
+        String reason,
+        String cancelKey
+    ) {
+        try {
+            Map<String, Object> result = restClient.post()
+                .uri("/v1/payments/{paymentKey}/cancel", paymentKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("Idempotency-Key", cancelKey)
+                .body(Map.of("cancelReason", reason))
+                .retrieve()
+                .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+
+            if (result == null) {
+                throw new IllegalStateException("취소 결과를 확인하지 못했습니다. 같은 주문으로 다시 시도해주세요.");
+            }
+            return result;
+        } catch (RestClientResponseException e) {
+            throw new IllegalStateException(
+                "Toss 취소 요청 결과를 확인해주세요. 같은 주문으로 재시도할 수 있습니다. ("
+                + e.getStatusCode().value() + ")"
+            );
+        } catch (ResourceAccessException e) {
+            // 통신 실패여도 Toss에서 취소됐을 수 있으므로 재고를 바로 복구하지 않습니다.
+            throw new IllegalStateException(
+                "취소 결과를 확인하지 못했습니다. 출고는 보류되며 같은 주문으로 다시 시도해주세요."
+            );
+        }
+    }
 }
