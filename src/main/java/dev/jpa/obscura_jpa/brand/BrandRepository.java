@@ -38,4 +38,12 @@ public interface BrandRepository extends JpaRepository<Brand, Long> {
      * STATUSNO = 1
      */
     List<Brand> findAllByStatusNoOrderByNoDesc(Integer statusNo);
+    
+    /**
+     * 메인에 노출할 활성 브랜드를 표시 순서대로 조회합니다.
+     * 같은 순서이면 브랜드번호로 정렬해 결과 순서를 일정하게 유지합니다.
+     */
+    List<Brand> findAllByStatusNoAndTopBrandYnOrderByTopSeqNoAscNoAsc(
+        Integer statusNo, String topBrandYn
+    );
 }

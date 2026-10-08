@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import lombok.RequiredArgsConstructor;
 
@@ -51,6 +52,33 @@ public class BrandController {
             return ResponseEntity
                 .badRequest()
                 .body(e.getMessage());
+        }
+    }
+    
+    /** 브랜드 이미지 업로드: type은 logo 또는 visual */
+    @PostMapping("/{no}/images/{type}")
+    public ResponseEntity<?> uploadBrandImage(
+        @PathVariable("no") Long no,
+        @PathVariable("type") String type,
+        @RequestParam("file") MultipartFile file
+    ) {
+        try {
+            return ResponseEntity.ok(brandService.uploadBrandImage(no, type, file));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /** 브랜드 이미지 등록 해제 */
+    @DeleteMapping("/{no}/images/{type}")
+    public ResponseEntity<?> removeBrandImage(
+        @PathVariable("no") Long no,
+        @PathVariable("type") String type
+    ) {
+        try {
+            return ResponseEntity.ok(brandService.removeBrandImage(no, type));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
@@ -177,6 +205,25 @@ public class BrandController {
             return ResponseEntity
                 .badRequest()
                 .body(e.getMessage());
+        }
+    }
+    
+    /** 메인 Top Brands 목록 조회 */
+    @GetMapping("/top-brands")
+    public ResponseEntity<List<BrandDTO>> findTopBrands() {
+        return ResponseEntity.ok(brandService.findTopBrands());
+    }
+
+    /** 관리자 Top Brands 노출 여부·순서 저장 */
+    @PutMapping("/{no}/top-brand")
+    public ResponseEntity<?> updateTopBrand(
+        @PathVariable("no") Long no,
+        @RequestBody BrandDTO dto
+    ) {
+        try {
+            return ResponseEntity.ok(brandService.updateTopBrand(no, dto));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 }

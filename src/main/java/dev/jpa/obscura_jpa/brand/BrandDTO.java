@@ -47,4 +47,10 @@ public class BrandDTO {
 
     /** 해당 브랜드 할인 상품 수 */
     private Long saleProductCount;
+    
+    /** 메인 Top Brands 노출 여부 */
+    private String topBrandYn;
+
+    /** 메인 Top Brands 노출 순서 */
+    private Integer topSeqNo;
 }

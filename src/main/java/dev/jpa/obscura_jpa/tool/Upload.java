@@ -99,6 +99,79 @@ public class Upload {
 
         return fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
     }
+    
+    /** 브랜드 이미지 저장: 상품 이미지와 분리하고 원본 비율을 유지합니다. */
+    public static String saveBrandImage(MultipartFile file) {
+        validate(file);
+
+        String extension = getExtension(file.getOriginalFilename());
+        String fileName = UUID.randomUUID() + "." + extension;
+        File uploadDir = new File("uploads/brands");
+
+        if (!uploadDir.exists() && !uploadDir.mkdirs()) {
+            throw new RuntimeException("브랜드 이미지 폴더 생성에 실패했습니다.");
+        }
+
+        File saveFile = new File(uploadDir, fileName);
+
+        try {
+            file.transferTo(saveFile.getAbsoluteFile());
+        } catch (IOException e) {
+            throw new RuntimeException("브랜드 이미지 저장에 실패했습니다.", e);
+        }
+
+        return "/uploads/brands/" + fileName;
+    }
+    
+    /**
+     * 메인 배너 이미지 저장
+     * 원본 비율·해상도를 유지하며 UUID 파일명으로 저장합니다.
+     */
+    public static String saveBannerImage(MultipartFile file) {
+        // 기존 Hero의 .jfif 이미지도 등록할 수 있도록 JPG 확장자로 정규화합니다.
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("업로드할 이미지가 없습니다.");
+        }
+
+        if (file.getSize() > MAX_FILE_SIZE) {
+            throw new IllegalArgumentException("이미지는 한 장당 최대 10MB까지 업로드할 수 있습니다.");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(
+            contentType.toLowerCase(java.util.Locale.ROOT)
+        )) {
+            throw new IllegalArgumentException("JPG, JPEG, JFIF, PNG, WEBP 이미지만 업로드할 수 있습니다.");
+        }
+
+        String extension = getExtension(file.getOriginalFilename());
+        if ("jfif".equals(extension)) {
+            if (!"image/jpeg".equalsIgnoreCase(contentType)) {
+                throw new IllegalArgumentException("JFIF 파일은 JPEG 이미지여야 합니다.");
+            }
+            extension = "jpg";
+        }
+
+        if (!ALLOWED_EXTENSIONS.contains(extension)) {
+            throw new IllegalArgumentException("허용되지 않는 이미지 확장자입니다.");
+        }
+
+        File uploadDir = new File("uploads/banners");
+        if (!uploadDir.exists() && !uploadDir.mkdirs()) {
+            throw new IllegalStateException("배너 이미지 폴더 생성에 실패했습니다.");
+        }
+
+        String fileName = UUID.randomUUID() + "." + extension;
+        File saveFile = new File(uploadDir, fileName);
+
+        try {
+            file.transferTo(saveFile.getAbsoluteFile());
+        } catch (IOException exception) {
+            throw new IllegalStateException("배너 이미지 저장에 실패했습니다.", exception);
+        }
+
+        return "/uploads/banners/" + fileName;
+    }
 
     // 객체 생성 방지
     private Upload() {

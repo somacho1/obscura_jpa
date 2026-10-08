@@ -67,4 +67,14 @@ public class Brand {
     /** 브랜드 등록일시 */
     @Column(name = "CDATE", nullable = false)
     private LocalDateTime cdate;
+    
+    /** 메인 Top Brands 노출 여부: Y 노출 / N 숨김 */
+    @Builder.Default
+    @Column(name = "TOPBRANDYN", nullable = false, length = 1)
+    private String topBrandYn = "N";
+
+    /** 메인 Top Brands 노출 순서: 작은 숫자부터 표시 */
+    @Builder.Default
+    @Column(name = "TOPSEQNO", nullable = false)
+    private Integer topSeqNo = 0;
 }

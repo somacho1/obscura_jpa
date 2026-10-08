@@ -5,7 +5,9 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Service;
-
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+import dev.jpa.obscura_jpa.tool.Upload;
 import dev.jpa.obscura_jpa.product.ProductRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -41,12 +43,58 @@ public class BrandService {
             .visualUrl(dto.getVisualUrl())
             .detail(dto.getDetail())
             .statusNo(1)
+            .topBrandYn("N") // 신규 브랜드는 메인 숨김으로 시작
+            .topSeqNo(0)    // 기본 노출 순서
             .cdate(LocalDateTime.now())
             .build();
 
         Brand savedBrand = brandRepository.save(brand);
 
         return toDTO(savedBrand);
+    }
+    
+    /** 브랜드 로고 또는 대표 이미지 업로드 후 DB 경로 저장 */
+    @Transactional
+    public BrandDTO uploadBrandImage(Long no, String type, MultipartFile file) {
+        validateImageType(type);
+
+        // 존재하지 않는 브랜드에는 파일을 저장하지 않습니다.
+        Brand brand = brandRepository.findById(no)
+            .orElseThrow(() -> new IllegalArgumentException("브랜드 정보를 찾을 수 없습니다."));
+
+        String imageUrl = Upload.saveBrandImage(file);
+
+        if ("logo".equals(type)) {
+            brand.setLogoUrl(imageUrl);
+        } else {
+            brand.setVisualUrl(imageUrl);
+        }
+
+        return toDTO(brandRepository.save(brand));
+    }
+
+    /** 이미지 등록 해제: DB 연결을 비워 메인에서 표시하지 않습니다. */
+    @Transactional
+    public BrandDTO removeBrandImage(Long no, String type) {
+        validateImageType(type);
+
+        Brand brand = brandRepository.findById(no)
+            .orElseThrow(() -> new IllegalArgumentException("브랜드 정보를 찾을 수 없습니다."));
+
+        if ("logo".equals(type)) {
+            brand.setLogoUrl(null);
+        } else {
+            brand.setVisualUrl(null);
+        }
+
+        return toDTO(brandRepository.save(brand));
+    }
+
+    /** 로고와 대표 이미지 외의 타입은 허용하지 않습니다. */
+    private void validateImageType(String type) {
+        if (!"logo".equals(type) && !"visual".equals(type)) {
+            throw new IllegalArgumentException("이미지 유형은 logo 또는 visual만 가능합니다.");
+        }
     }
 
     /**
@@ -164,9 +212,43 @@ public class BrandService {
             .visualUrl(brand.getVisualUrl())
             .detail(brand.getDetail())
             .statusNo(brand.getStatusNo())
+            .topBrandYn(brand.getTopBrandYn())
+            .topSeqNo(brand.getTopSeqNo())
             .cdate(brand.getCdate())
             .productCount(productCount)
             .saleProductCount(saleProductCount)
             .build();
+    }
+    
+    /** 메인 Top Brands 조회: 활성 브랜드 중 노출 설정한 브랜드만 반환합니다. */
+    @Transactional(readOnly = true)
+    public List<BrandDTO> findTopBrands() {
+        return brandRepository
+            .findAllByStatusNoAndTopBrandYnOrderByTopSeqNoAscNoAsc(1, "Y")
+            .stream()
+            .map(this::toDTO)
+            .toList();
+    }
+
+    /** 관리자 Top Brands 설정 저장: 브랜드 기본정보는 그대로 유지합니다. */
+    @Transactional
+    public BrandDTO updateTopBrand(Long no, BrandDTO dto) {
+        if (!"Y".equals(dto.getTopBrandYn()) && !"N".equals(dto.getTopBrandYn())) {
+            throw new IllegalArgumentException("Top Brands 노출 여부는 Y 또는 N만 가능합니다.");
+        }
+
+        if (dto.getTopSeqNo() == null || dto.getTopSeqNo() < 0
+            || dto.getTopSeqNo() > 999999999) {
+            throw new IllegalArgumentException("노출 순서는 0~999999999 사이의 정수로 입력해주세요.");
+        }
+
+        Brand brand = brandRepository.findById(no)
+            .orElseThrow(() -> new IllegalArgumentException("브랜드 정보를 찾을 수 없습니다."));
+
+        // 비활성 브랜드는 기존 설정을 유지할 수 있지만 메인 조회에서는 제외됩니다.
+        brand.setTopBrandYn(dto.getTopBrandYn());
+        brand.setTopSeqNo(dto.getTopSeqNo());
+
+        return toDTO(brandRepository.save(brand));
     }
 }
