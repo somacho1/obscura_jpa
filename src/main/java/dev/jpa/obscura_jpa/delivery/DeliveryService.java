@@ -13,6 +13,9 @@ import dev.jpa.obscura_jpa.order.OrderRepository;
 @Transactional
 public class DeliveryService {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private dev.jpa.obscura_jpa.deliveryitem.DeliveryItemRepository deliveryItems;
+
     private final DeliveryRepository deliveryRepository;
     private final OrderRepository orderRepository;
     private final MemberAddressRepository memberAddressRepository;
@@ -164,6 +167,10 @@ public class DeliveryService {
             throw new IllegalArgumentException("배송 준비 상태에서만 출고할 수 있습니다.");
         }
 
+        if (deliveryItems.findAllByDeliveryNoOrderByNoAsc(no).isEmpty()) {
+            throw new IllegalArgumentException("출고할 상품이 없는 배송입니다.");
+        }
+
         // 주문·배송 엔티티는 같은 트랜잭션에서 함께 저장됩니다.
         delivery.setCompany(company);
         delivery.setTrackingNo(trackingNo);
@@ -219,7 +226,10 @@ public class DeliveryService {
 
         List<Delivery> deliveries = deliveryRepository.findAllByOrderNoOrderByNoAsc(ordno);
         boolean allCompleted = !deliveries.isEmpty()
-            && deliveries.stream().allMatch(item -> Integer.valueOf(2).equals(item.getStatusNo()));
+            && deliveries.stream()
+                // 환불로 상품 배정이 모두 사라진 배송은 완료 판단에서 제외합니다.
+                .filter(item -> !deliveryItems.findAllByDeliveryNoOrderByNoAsc(item.getNo()).isEmpty())
+                .allMatch(item -> Integer.valueOf(2).equals(item.getStatusNo()));
 
         // 배송 준비 또는 배송 중인 항목이 남아 있으면 주문은 배송 중을 유지합니다.
         if (allCompleted) {

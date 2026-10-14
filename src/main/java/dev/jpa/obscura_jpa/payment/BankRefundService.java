@@ -23,6 +23,9 @@ import dev.jpa.obscura_jpa.stock.StockRepository;
 @Transactional
 public class BankRefundService {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private dev.jpa.obscura_jpa.refund.LegacyRefundGuard refundGuard;
+
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final DeliveryRepository deliveryRepository;
@@ -74,6 +77,7 @@ public class BankRefundService {
         }
 
         Order order = lockOrder(orderNo);
+        refundGuard.requireLegacy(orderNo);
         validateMember(order, request.mno());
         Payment payment = findPayment(orderNo);
 
@@ -128,6 +132,7 @@ public class BankRefundService {
     // 관리자: 실제 송금 완료 후 호출합니다.
     public RefundInfo complete(Long orderNo) {
         Order order = lockOrder(orderNo);
+        refundGuard.requireLegacy(orderNo);
         Payment payment = findPayment(orderNo);
 
         // 완료 요청을 반복해도 재고를 다시 복구하지 않습니다.

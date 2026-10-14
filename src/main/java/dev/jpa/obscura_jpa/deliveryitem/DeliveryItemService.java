@@ -15,6 +15,11 @@ import dev.jpa.obscura_jpa.orderitem.OrderItemRepository;
 @Transactional
 public class DeliveryItemService {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private dev.jpa.obscura_jpa.order.OrderRepository orders;
+    @org.springframework.beans.factory.annotation.Autowired
+    private jakarta.persistence.EntityManager entities;
+
     private final DeliveryItemRepository deliveryItemRepository;
     private final DeliveryRepository deliveryRepository;
     private final OrderItemRepository orderItemRepository;
@@ -73,6 +78,16 @@ public class DeliveryItemService {
         /*
          * 주문상품 조회.
          */
+        var lockedOrder = orders.findByNoForUpdate(delivery.getOrder().getNo()).orElseThrow();
+        // 주문 생성 중 새 배송은 아직 INSERT가 대기 중일 수 있습니다.
+        // refresh 전에 DB에 반영합니다. flush는 commit이 아니므로 오류 시 함께 롤백됩니다.
+        entities.flush();
+        entities.refresh(delivery);
+        if (Integer.valueOf(3).equals(lockedOrder.getCancelStatusNo())
+            || Integer.valueOf(0).equals(lockedOrder.getStatusNo()) || delivery.getStatusNo() != 0) {
+            throw new IllegalArgumentException("환불 처리 중이거나 출고된 배송의 상품은 변경할 수 없습니다.");
+        }
+
         OrderItem orderItem =
             orderItemRepository.findById(dto.getOino())
                 .orElseThrow(() ->
@@ -142,7 +157,7 @@ public class DeliveryItemService {
         int totalDeliveryQty =
             alreadyDeliveredQty + dto.getQty();
 
-        if (totalDeliveryQty > orderItem.getQty()) {
+        if (totalDeliveryQty > orderItem.getQty() - (orderItem.getCancelQty() == null ? 0L : orderItem.getCancelQty())) {
             throw new IllegalArgumentException(
                 "배송수량이 주문수량을 초과합니다."
             );
@@ -214,6 +229,12 @@ public class DeliveryItemService {
                         "존재하지 않는 배송상품입니다."
                     )
                 );
+
+        var lockedOrder = orders.findByNoForUpdate(deliveryItem.getDelivery().getOrder().getNo()).orElseThrow();
+        entities.refresh(deliveryItem.getDelivery());
+        if (Integer.valueOf(3).equals(lockedOrder.getCancelStatusNo())) {
+            throw new IllegalArgumentException("환불 처리 중에는 배송 배정을 변경할 수 없습니다.");
+        }
 
         /*
          * DELIVERY.STATUSNO

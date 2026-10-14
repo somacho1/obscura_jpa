@@ -104,17 +104,21 @@ public class TossPaymentClient {
     }
 
     // 전체 취소: cancelAmount를 생략해 전액 취소합니다.
-    public Map<String, Object> cancelPayment(
-        String paymentKey,
-        String reason,
-        String cancelKey
-    ) {
+    public Map<String, Object> cancelPayment(String paymentKey, String reason, String cancelKey) {
+        return cancelPayment(paymentKey, reason, cancelKey, null);
+    }
+
+    // 금액을 지정하면 부분취소, 생략하면 기존 전체취소입니다.
+    public Map<String, Object> cancelPayment(String paymentKey, String reason, String cancelKey, Long amount) {
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("cancelReason", reason);
+        if (amount != null) body.put("cancelAmount", amount);
         try {
             Map<String, Object> result = restClient.post()
                 .uri("/v1/payments/{paymentKey}/cancel", paymentKey)
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Idempotency-Key", cancelKey)
-                .body(Map.of("cancelReason", reason))
+                .body(body)
                 .retrieve()
                 .body(new ParameterizedTypeReference<Map<String, Object>>() {});
 

@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 public class TossCancelController {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private dev.jpa.obscura_jpa.auth.SessionAuthService auth;
+
     private final TossCancelService tossCancelService;
 
     public TossCancelController(TossCancelService tossCancelService) {
@@ -20,8 +23,9 @@ public class TossCancelController {
 
     // POST /api/payments/toss/cancel
     @PostMapping("/cancel")
-    public ResponseEntity<?> cancel(@RequestBody TossCancelRequest request) {
+    public ResponseEntity<?> cancel(@RequestBody TossCancelRequest request, jakarta.servlet.http.HttpServletRequest servletRequest) {
         try {
+            auth.requireOwner(servletRequest, request.mno());
             return ResponseEntity.ok(tossCancelService.cancel(request));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -30,3 +34,4 @@ public class TossCancelController {
         }
     }
 }
+

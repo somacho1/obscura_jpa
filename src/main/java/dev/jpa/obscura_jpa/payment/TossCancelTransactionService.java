@@ -25,6 +25,9 @@ import dev.jpa.obscura_jpa.stock.StockRepository;
 @Service
 public class TossCancelTransactionService {
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private dev.jpa.obscura_jpa.refund.LegacyRefundGuard refundGuard;
+
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final OrderItemRepository orderItemRepository;
@@ -68,6 +71,7 @@ public class TossCancelTransactionService {
 
         Order order = orderRepository.findByNoForUpdate(request.orderNo())
             .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+        refundGuard.requireLegacy(order.getNo());
 
         if (!order.getMember().getNo().equals(request.mno())) {
             throw new IllegalArgumentException("본인의 주문만 취소할 수 있습니다.");
