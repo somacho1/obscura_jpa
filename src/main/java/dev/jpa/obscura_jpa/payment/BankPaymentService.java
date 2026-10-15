@@ -10,6 +10,9 @@ import dev.jpa.obscura_jpa.order.OrderRepository;
 
 @Service
 public class BankPaymentService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private dev.jpa.obscura_jpa.adminorder.AdminOrderEventService adminEvents;
+
 
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
@@ -80,7 +83,9 @@ public class BankPaymentService {
         payment.setCdate(LocalDateTime.now());
 
         // 실제 입금 확인 전이므로 승인일시와 주문 완료 상태를 설정하지 않습니다.
-        return toDTO(paymentRepository.saveAndFlush(payment));
+        paymentRepository.saveAndFlush(payment);
+        adminEvents.record(order.getNo(),null,"BANK_APPLIED:"+order.getNo(),"BANK_APPLIED","무통장 주문 · 입금 확인 대기",payment.getAmount(),true);
+        return toDTO(payment);
     }
     
     // 관리자 입금 확인: 결제와 주문을 하나의 트랜잭션으로 완료 처리합니다.
@@ -126,6 +131,7 @@ public class BankPaymentService {
         payment.setStatusNo(1);
         payment.setApproveDate(LocalDateTime.now());
         order.setStatusNo(2);
+        adminEvents.record(ordno,null,"DEPOSIT_CONFIRMED:"+ordno,"DEPOSIT_CONFIRMED","관리자 입금 확인 완료",payment.getAmount(),false);
 
         // 조회한 엔티티의 변경사항은 트랜잭션 커밋 시 함께 저장됩니다.
         // 재고는 주문 생성 시 이미 차감했으므로 여기서 다시 차감하지 않습니다.

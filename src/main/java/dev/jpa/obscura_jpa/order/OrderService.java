@@ -34,6 +34,9 @@ import dev.jpa.obscura_jpa.payment.PaymentRepository;
 @Service
 @Transactional
 public class OrderService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private dev.jpa.obscura_jpa.adminorder.AdminOrderEventService adminEvents;
+
 
   private final OrderRepository orderRepository;
   private final OrderItemRepository orderItemRepository;
@@ -217,6 +220,7 @@ public class OrderService {
     // 6. 선택한 주문 상품만 장바구니에서 제거합니다.
     cartItemRepository.deleteAll(cartItems);
 
+    adminEvents.record(order.getNo(), null, "ORDER_CREATED:"+order.getNo(), "ORDER_CREATED", "새 주문 접수", order.getTotalPrice(), true);
     // 7. 결과 반환
     return toDTO(order, orderItemDTOs);
   }
@@ -314,7 +318,9 @@ public OrderDTO updateStatus(Long no, OrderDTO dto) {
      throw new IllegalArgumentException("진행된 주문을 결제 대기로 변경할 수 없습니다.");
  }
 
+ Integer previousStatus=order.getStatusNo();
  order.setStatusNo(statusNo);
+ if (!java.util.Objects.equals(previousStatus,statusNo)) adminEvents.record(no,null,"ORDER_STATUS:"+java.util.UUID.randomUUID(),"ORDER_STATUS","주문상태 변경: "+previousStatus+" → "+statusNo,null,false);
  Order saved = orderRepository.save(order);
 
  List<OrderItemDTO> items = orderItemRepository.findAllByOrderNoOrderByNoAsc(no)
@@ -402,7 +408,8 @@ public OrderDTO updateStatus(Long no, OrderDTO dto) {
     }
 
     order.setStatusNo(0); // 주문 취소
-    order.setCancelStatusNo(2); // 전체 취소
+    order.setCancelStatusNo(2);
+    adminEvents.record(no,null,"PENDING_CANCEL:"+no,"PENDING_CANCEL","결제 전 주문 취소·재고 복구",order.getTotalPrice(),true); // 전체 취소
 
     // 조회한 Entity는 변경 감지로 저장되므로 save를 각각 호출하지 않습니다.
     return toDTO(order, items.stream().map(this::toOrderItemDTO).toList());

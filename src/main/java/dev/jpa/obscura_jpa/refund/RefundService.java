@@ -79,22 +79,14 @@ public class RefundService {
         } else if (balance != after) {
             throw new IllegalStateException("Toss 잔액이 환불 요청과 다릅니다. 거래내역을 확인해주세요.");
         }
-     // 여러 번 나누어 취소하면 잔액이 0이어도 PARTIAL_CANCELED가 반환될 수 있습니다.
-        long actualBalance = number(result.get("balanceAmount"));
+        // 잔액 전체를 여러 번 나누어 취소하면 잔액 0에도 PARTIAL_CANCELED가 올 수 있습니다.
+        // 잔액과 아래의 누적 취소금액·이번 취소 거래 검증을 모두 통과해야 완료합니다.
         String actualStatus = String.valueOf(result.get("status"));
-
-        // 잔액 0은 두 취소 상태를 허용하고, 잔액이 남으면 부분취소 상태만 허용합니다.
         boolean validStatus = after == 0
             ? List.of("CANCELED", "PARTIAL_CANCELED").contains(actualStatus)
             : "PARTIAL_CANCELED".equals(actualStatus);
-
-        if (actualBalance != after || !validStatus) {
-            throw new IllegalStateException(
-                "환불 완료 확인 불일치"
-                + " / 예상 잔액: " + after
-                + " / Toss 잔액: " + actualBalance
-                + " / Toss 상태: " + actualStatus
-            );
+        if (number(result.get("balanceAmount")) != after || !validStatus) {
+            throw new IllegalStateException("환불 완료가 확인되지 않았습니다. 같은 요청으로 다시 확인해주세요.");
         }
         // 외부 성공 후 DB 저장에 실패해도 잔액과 완료된 거래를 확인하고 한 번만 복구합니다.
         validateCanceledTotal(prepared, result, after);

@@ -22,6 +22,9 @@ import dev.jpa.obscura_jpa.stock.StockRepository;
 @Service
 @Transactional
 public class BankRefundService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private dev.jpa.obscura_jpa.adminorder.AdminOrderEventService adminEvents;
+
 
     @org.springframework.beans.factory.annotation.Autowired
     private dev.jpa.obscura_jpa.refund.LegacyRefundGuard refundGuard;
@@ -124,6 +127,7 @@ public class BankRefundService {
         payment.setRefundAccount(account);
         payment.setRefundHolder(holder);
         order.setCancelStatusNo(3);
+        adminEvents.record(orderNo,null,"LEGACY_REFUND_REQUEST:"+orderNo,"LEGACY_REFUND_REQUEST","기존 무통장 전체환불 요청 · 송금 대기",payment.getAmount(),true);
 
         // 아직 실제 송금 전이므로 결제 취소·재고 복구는 하지 않습니다.
         return toInfo(order, payment);
@@ -180,6 +184,7 @@ public class BankRefundService {
         payment.setCancelDate(now);
         order.setStatusNo(0);
         order.setCancelStatusNo(2);
+        adminEvents.record(orderNo,null,"LEGACY_REFUND_DONE:"+orderNo,"LEGACY_REFUND_DONE","기존 무통장 전체환불 완료 · 재고 복구",payment.getAmount(),true);
 
         // 주문·결제·주문상품·재고를 같은 트랜잭션에서 저장합니다.
         return toInfo(order, payment);

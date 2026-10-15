@@ -12,6 +12,9 @@ import dev.jpa.obscura_jpa.order.OrderRepository;
 @Service
 @Transactional
 public class DeliveryService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private dev.jpa.obscura_jpa.adminorder.AdminOrderEventService adminEvents;
+
 
     @org.springframework.beans.factory.annotation.Autowired
     private dev.jpa.obscura_jpa.deliveryitem.DeliveryItemRepository deliveryItems;
@@ -177,6 +180,7 @@ public class DeliveryService {
         delivery.setStatusNo(1);
         delivery.setShipDate(LocalDateTime.now());
         order.setStatusNo(4);
+        adminEvents.record(ordno,null,"SHIPPED:"+no,"SHIPPED","출고 완료 · 배송번호 "+no,null,false);
 
         // 재고는 주문 생성 시 차감했으므로 출고 시 다시 차감하지 않습니다.
         return toDTO(delivery);
@@ -219,6 +223,7 @@ public class DeliveryService {
 
         delivery.setStatusNo(2);
         delivery.setDeliveryDate(LocalDateTime.now());
+        adminEvents.record(ordno,null,"DELIVERED:"+no,"DELIVERED","배송 완료 · 배송번호 "+no,null,false);
 
         // 이번 배송의 변경사항을 DB에 반영한 뒤 전체 배송 상태를 조회합니다.
         // flush는 커밋이 아니므로 이후 오류가 나면 함께 롤백됩니다.

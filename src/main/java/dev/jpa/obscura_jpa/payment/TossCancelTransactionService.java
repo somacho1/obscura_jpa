@@ -24,6 +24,9 @@ import dev.jpa.obscura_jpa.stock.StockRepository;
 
 @Service
 public class TossCancelTransactionService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private dev.jpa.obscura_jpa.adminorder.AdminOrderEventService adminEvents;
+
 
     @org.springframework.beans.factory.annotation.Autowired
     private dev.jpa.obscura_jpa.refund.LegacyRefundGuard refundGuard;
@@ -128,6 +131,7 @@ public class TossCancelTransactionService {
         }
 
         paymentRepository.saveAndFlush(payment);
+        adminEvents.record(order.getNo(),null,"LEGACY_REFUND_REQUEST:"+order.getNo(),"LEGACY_REFUND_REQUEST","기존 카드 전체취소 요청 · 결과 확인 필요",payment.getAmount(),true);
         return toPrepared(payment, false);
     }
 
@@ -274,6 +278,7 @@ public class TossCancelTransactionService {
         payment.setCancelDate(cancelledAt);
         order.setStatusNo(0);
         order.setCancelStatusNo(2);
+        adminEvents.record(order.getNo(),null,"LEGACY_REFUND_DONE:"+order.getNo(),"LEGACY_REFUND_DONE","기존 카드 전체환불 완료 · 재고 복구",payment.getAmount(),true);
     }
 
     private PreparedCancel toPrepared(Payment payment, boolean completed) {

@@ -16,6 +16,9 @@ import java.util.Map;
 // DB 트랜잭션을 담당합니다. Toss 외부 API 호출은 별도 Service에서 진행합니다.
 @Service
 public class TossPaymentTransactionService {
+    @org.springframework.beans.factory.annotation.Autowired
+    private dev.jpa.obscura_jpa.adminorder.AdminOrderEventService adminEvents;
+
 
   private final OrderRepository orderRepository;
   private final PaymentRepository paymentRepository;
@@ -115,6 +118,7 @@ public class TossPaymentTransactionService {
 
     // 이 메서드가 정상 종료되어 커밋된 후 외부 승인 API를 호출합니다.
     paymentRepository.saveAndFlush(payment);
+    adminEvents.record(order.getNo(),null,"PAYMENT_CHECK:"+order.getNo(),"PAYMENT_CHECK","카드 승인 진행 · 결과 확인 필요",payment.getAmount(),true);
     return toPreparedPayment(payment, false);
   }
 
@@ -194,6 +198,7 @@ public class TossPaymentTransactionService {
     payment.setStatusNo(1); // PAYMENT: 결제 완료
     payment.setApproveDate(approvedAt);
     order.setStatusNo(2); // ORDERS: 결제 완료
+    adminEvents.record(order.getNo(),null,"PAYMENT_APPROVED:"+order.getNo(),"PAYMENT_APPROVED","카드·간편결제 승인 완료",payment.getAmount(),false);
 
     // 같은 트랜잭션에서 변경 감지로 두 Entity를 저장합니다.
     return toPaymentDTO(payment);

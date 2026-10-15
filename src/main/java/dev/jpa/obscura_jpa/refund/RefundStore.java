@@ -19,6 +19,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class RefundStore {
+    @org.springframework.beans.factory.annotation.Autowired
+    private dev.jpa.obscura_jpa.adminorder.AdminOrderEventService adminEvents;
+
     private final JdbcTemplate jdbc;
     private final OrderRepository orders;
     private final OrderItemRepository items;
@@ -192,6 +195,8 @@ public class RefundStore {
         // 출고와 기존 전체환불은 이 상태에서 차단됩니다.
         order.setCancelStatusNo(3);
         entities.flush();
+        adminEvents.record(orderNo,no,"REFUND_REQUEST:"+no,"REFUND_REQUEST",
+            "BANK".equals(pay.getMethod()) ? "무통장 환불 요청 · 송금 대기" : "카드 환불 요청 · 결과 확인 필요",result.amount(),true);
         return find(no);
     }
 
@@ -253,6 +258,8 @@ public class RefundStore {
         if (all) order.setStatusNo(0);
         jdbc.update("UPDATE REFUND SET STATUSNO=1, COMPLETEDATE=? WHERE NO=?", java.sql.Timestamp.valueOf(now), saved.no());
         entities.flush();
+        adminEvents.record(order.getNo(),saved.no(),"REFUND_COMPLETED:"+saved.no(),"REFUND_COMPLETED",
+            (all ? "전체환불" : "부분환불")+" 완료 · 선택 수량 재고 복구",saved.amount(),true);
         return find(saved.no());
     }
 }
