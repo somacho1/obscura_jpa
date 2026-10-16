@@ -37,8 +37,10 @@ public class ApiAccessConfig implements WebMvcConfigurer {
         config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", config);
+        source.registerCorsConfiguration("/api/**", config);
+        source.registerCorsConfiguration("/uploads/**", config);
         FilterRegistrationBean<CorsFilter> registration = new FilterRegistrationBean<>(new CorsFilter(source));
-        registration.addUrlPatterns("/api/*");
+        registration.addUrlPatterns("/api/*", "/uploads/*");
         registration.setOrder(-200);
         return registration;
     }

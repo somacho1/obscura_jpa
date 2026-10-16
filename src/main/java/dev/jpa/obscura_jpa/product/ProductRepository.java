@@ -102,4 +102,14 @@ Page<Product> findByStatusNoAndMdPickYnOrderByMdSeqNoAscCdateDescNoDesc(
   Pageable pageable
 );
 
+    // 먼저 태그로 필터링한 뒤 5개를 조회해야 뒤쪽 MD 상품도 검색됩니다.
+    @Query("""
+        select p from Product p
+        where p.statusNo = 1 and p.mdPickYn = 'Y'
+          and exists (select t.no from ProductTag t
+                      where t.product = p and lower(trim(t.tag)) = :tag)
+        order by p.mdSeqNo asc, p.cdate desc, p.no desc
+        """)
+    List<Product> findMdPicksByTag(@Param("tag") String tag, Pageable pageable);
+
 }

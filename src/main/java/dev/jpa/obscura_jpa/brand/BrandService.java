@@ -194,6 +194,19 @@ public class BrandService {
         brandRepository.save(brand);
     }
 
+    /** 상품 없는 브랜드 정리용 영구삭제. 연결된 상품은 자동 삭제하지 않습니다. */
+    @Transactional
+    public void deleteEmptyBrand(Long no) {
+        Brand brand = brandRepository.findById(no)
+            .orElseThrow(() -> new IllegalArgumentException("브랜드 정보를 찾을 수 없습니다."));
+        if (productRepository.countByBrandNo(no) > 0) {
+            throw new IllegalStateException("등록된 상품이 있는 브랜드는 삭제할 수 없습니다. 브랜드 수정에서 비활성으로 변경해 주세요.");
+        }
+        brandRepository.delete(brand);
+        // 외래키 연결이 남아 있으면 트랜잭션 안에서 오류를 발생시켜 삭제를 취소합니다.
+        brandRepository.flush();
+    }
+
     /**
      * Entity -> DTO 변환
      *

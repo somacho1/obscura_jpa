@@ -12,9 +12,6 @@ import org.springframework.web.bind.annotation.*;
 
 public class BankRefundController {
 
-    @org.springframework.beans.factory.annotation.Autowired
-    private dev.jpa.obscura_jpa.auth.SessionAuthService auth;
-
     private final BankRefundService bankRefundService;
 
     public BankRefundController(BankRefundService bankRefundService) {
@@ -25,10 +22,8 @@ public class BankRefundController {
     @GetMapping("/order/{no}/refund")
     public ResponseEntity<?> find(
         @PathVariable("no") Long no,
-        @RequestParam("mno") Long mno,
-        jakarta.servlet.http.HttpServletRequest servletRequest
+        @RequestParam("mno") Long mno
     ) {
-        auth.requireOwner(servletRequest, mno);
         return respond(() -> bankRefundService.find(no, mno, false));
     }
 
@@ -36,10 +31,8 @@ public class BankRefundController {
     @PostMapping("/order/{no}/refund")
     public ResponseEntity<?> request(
         @PathVariable("no") Long no,
-        @RequestBody BankRefundRequest request,
-        jakarta.servlet.http.HttpServletRequest servletRequest
+        @RequestBody BankRefundRequest request
     ) {
-        auth.requireOwner(servletRequest, request.mno());
         return respond(() -> bankRefundService.request(no, request));
     }
 
@@ -67,4 +60,3 @@ public class BankRefundController {
         }
     }
 }
-

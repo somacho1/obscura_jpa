@@ -34,6 +34,7 @@ public class ProductService {
     private final ProductImageRepository productImageRepository;
     private final ProductOptionRepository productOptionRepository;
     private final StockRepository stockRepository;
+    private final dev.jpa.obscura_jpa.producttag.ProductTagRepository productTagRepository;
 
     public ProductService(
         ProductRepository productRepository,
@@ -41,7 +42,8 @@ public class ProductService {
         CategoryRepository categoryRepository,
         ProductImageRepository productImageRepository,
         ProductOptionRepository productOptionRepository,
-        StockRepository stockRepository
+        StockRepository stockRepository,
+        dev.jpa.obscura_jpa.producttag.ProductTagRepository productTagRepository
     ) {
         this.productRepository = productRepository;
         this.brandRepository = brandRepository;
@@ -49,6 +51,7 @@ public class ProductService {
         this.productImageRepository = productImageRepository;
         this.productOptionRepository = productOptionRepository;
         this.stockRepository = stockRepository;
+        this.productTagRepository = productTagRepository;
     }
 
     // 상품 등록
@@ -704,6 +707,25 @@ public class ProductService {
                 1, "Y", PageRequest.of(0, size)
             )
             .getContent().stream().map(this::toDTO).toList();
+    }
+
+    public record MdTag(String tag, long productCount) {}
+
+    // 상단 태그는 화면의 5개가 아닌 전체 MD 상품을 기준으로 생성합니다.
+    @Transactional(readOnly = true)
+    public List<MdTag> findMdPickTags() {
+        return productTagRepository.findMdTagCounts(PageRequest.of(0, 6)).stream()
+            .map(row -> new MdTag(row.getTag(), row.getProductCount())).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductDTO> findMdPicks(int size, String tag) {
+        if (tag == null || tag.isBlank()) return findMdPicks(size);
+        if (size < 1 || size > 30) throw new IllegalArgumentException("추천 상품 수는 1~30개여야 합니다.");
+        String normalized = tag.trim().toLowerCase(Locale.ROOT);
+        if (normalized.length() > 50) throw new IllegalArgumentException("태그는 50자 이하여야 합니다.");
+        return productRepository.findMdPicksByTag(normalized, PageRequest.of(0, size))
+            .stream().map(this::toDTO).toList();
     }
 
     // 관리자 MD 추천 설정 변경

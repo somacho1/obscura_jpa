@@ -228,13 +228,20 @@ public class ProductController {
  // 메인 MD 추천 상품 조회
     @GetMapping("/md-picks")
     public ResponseEntity<?> findMdPicks(
-        @RequestParam(value = "size", defaultValue = "5") int size
+        @RequestParam(value = "size", defaultValue = "5") int size,
+        @RequestParam(value = "tag", required = false) String tag
     ) {
         try {
-            return ResponseEntity.ok(productService.findMdPicks(size));
+            return ResponseEntity.ok(productService.findMdPicks(size, tag));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    // 공개 조회: 검수 후 DB에 저장된 MD 상품 태그만 반환합니다.
+    @GetMapping("/md-picks/tags")
+    public ResponseEntity<?> findMdPickTags() {
+        return ResponseEntity.ok(productService.findMdPickTags());
     }
 
     // 관리자 MD 추천 여부·표시 순서 변경

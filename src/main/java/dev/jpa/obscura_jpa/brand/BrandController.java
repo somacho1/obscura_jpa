@@ -213,6 +213,21 @@ public class BrandController {
         }
     }
     
+    /** 기존 DELETE /{no}의 비활성 기능과 구분되는 빈 브랜드 영구삭제 API */
+    @RequireRole
+    @DeleteMapping("/{no}/permanent")
+    public ResponseEntity<?> deleteEmptyBrand(@PathVariable("no") Long no) {
+        try {
+            brandService.deleteEmptyBrand(no);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        } catch (IllegalStateException | org.springframework.dao.DataIntegrityViolationException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body("연결된 상품 또는 사용 이력이 있는 브랜드는 삭제할 수 없습니다. 브랜드 수정에서 비활성으로 변경해 주세요.");
+        }
+    }
+
     /** 메인 Top Brands 목록 조회 */
     @GetMapping("/top-brands")
     public ResponseEntity<List<BrandDTO>> findTopBrands() {
